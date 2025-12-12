@@ -82,6 +82,7 @@ const els = {
   netExpense: document.getElementById("netExpense"),
   netLeft: document.getElementById("netLeft"),
   netInsight: document.getElementById("netInsight"),
+  foodInsight: document.getElementById("foodInsight"),
 
   // inventory
   invForm: document.getElementById("invForm"),
@@ -795,15 +796,21 @@ function renderInventory() {
     `;
   }).join("");
 
-  // Beslenme bütçesiyle karşılaştır
-  const food = loadBudgetMaster().find(b => b.name.toLowerCase() === "beslenme");
-  if (food && els.netInsight) {
+  // Beslenme bütçesiyle karşılaştır (ENVANTER İÇİN)
+const food = loadBudgetMaster().find(b => b.name.toLowerCase() === "beslenme");
+
+if (els.foodInsight) {
+  if (food) {
     const diff = food.defaultBudget - totalMonthlyCost;
-    els.netInsight.textContent =
+    els.foodInsight.textContent =
       diff >= 0
         ? `Beslenme bütçenle uyumlu ✅ (${formatTRY(diff)} pay var)`
         : `Beslenme bütçesini aşıyorsun ⚠️ (${formatTRY(-diff)} fazla)`;
+  } else {
+    els.foodInsight.textContent =
+      "Beslenme bütçesi yok. Gider → Standart Giderler’den 'Beslenme' ekle.";
   }
+}
 
   els.invBody.querySelectorAll("button[data-invdel]").forEach(btn => {
     btn.addEventListener("click", () => {
