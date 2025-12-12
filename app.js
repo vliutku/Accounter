@@ -965,6 +965,7 @@ function init() {
   // inventory
   els.invForm?.addEventListener("submit", (e) => {
     e.preventDefault();
+      const y = window.scrollY;
     const item = {
       id: uid(),
       name: els.invName.value.trim(),
@@ -977,7 +978,8 @@ function init() {
     saveInventory(inventory);
     els.invName.value = "";
     els.invQty.value = "";
-    renderInventory();
+renderAll();
+requestAnimationFrame(() => window.scrollTo(0, y));
   });
 
   renderAll();
