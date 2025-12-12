@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Gelir-Gider Paneli</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="container">
+    <h1>Gelir–Gider Paneli</h1>
+    <p class="muted">Kayıtlar cihazında saklanır (LocalStorage).</p>
+  </header>
+
+  <main class="container grid">
+    <!-- Form -->
+    <section class="card">
+      <h2>Yeni Kayıt</h2>
+
+      <form id="txForm" class="form">
+        <label>
+          Tür
+          <select id="type" required>
+            <option value="income">Gelir</option>
+            <option value="expense">Gider</option>
+          </select>
+        </label>
+
+        <label>
+          Tutar (₺)
+          <input id="amount" type="number" inputmode="decimal" min="0" step="0.01" required />
+        </label>
+
+        <label>
+          Kategori
+          <select id="category" required></select>
+        </label>
+
+        <label>
+          Tarih
+          <input id="date" type="date" required />
+        </label>
+
+        <label>
+          Not
+          <input id="note" type="text" maxlength="120" placeholder="Opsiyonel" />
+        </label>
+
+        <div class="row">
+          <button type="submit">Ekle</button>
+          <button type="button" id="seedBtn" class="secondary">Örnek Veri</button>
+          <button type="button" id="resetBtn" class="danger">Sıfırla</button>
+        </div>
+      </form>
+    </section>
+
+    <!-- Summary -->
+    <section class="card">
+      <h2>Özet</h2>
+
+      <div class="summary">
+        <div class="pill">
+          <div class="muted">Gelir</div>
+          <div id="sumIncome" class="big">₺0</div>
+        </div>
+        <div class="pill">
+          <div class="muted">Gider</div>
+          <div id="sumExpense" class="big">₺0</div>
+        </div>
+        <div class="pill">
+          <div class="muted">Net</div>
+          <div id="sumNet" class="big">₺0</div>
+        </div>
+      </div>
+
+      <hr />
+
+      <h3>Filtre</h3>
+      <div class="form">
+        <label>
+          Ay
+          <input id="month" type="month" />
+        </label>
+
+        <label>
+          Kategori
+          <select id="filterCategory">
+            <option value="all">Hepsi</option>
+          </select>
+        </label>
+
+        <label>
+          Arama (Not)
+          <input id="q" type="text" placeholder="ör. kira, protein, uçak" />
+        </label>
+
+        <div class="row">
+          <button type="button" id="clearFilters" class="secondary">Filtreyi Temizle</button>
+          <button type="button" id="exportBtn">CSV Dışa Aktar</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Table -->
+    <section class="card full">
+      <div class="row space">
+        <h2>Kayıtlar</h2>
+        <div class="muted" id="countInfo">0 kayıt</div>
+      </div>
+
+      <div class="tableWrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Tarih</th>
+              <th>Tür</th>
+              <th>Kategori</th>
+              <th class="right">Tutar</th>
+              <th>Not</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="tbody"></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <footer class="container muted small">
+    v0.1 — Sonraki adım: aylık grafik, bütçe hedefleri, yatırım entegrasyonu.
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>
