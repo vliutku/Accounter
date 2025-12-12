@@ -45,7 +45,7 @@
 
       <div class="summary">
         <div class="pill">
-          <div class="muted">Bu Ay Gelir</div>
+          <div class="muted">Bu Ay Gelir (Sürekli)</div>
           <div id="mIncome" class="big">₺0</div>
         </div>
         <div class="pill">
@@ -60,6 +60,12 @@
 
       <hr />
 
+      <h3>Net Worth Grafiği</h3>
+      <canvas id="netWorthChart" height="160"></canvas>
+      <div class="muted small">Grafik, “Hızlı Güncelle” ile kaydettiğin aylık değerlerden oluşur.</div>
+
+      <hr />
+
       <h3>Hızlı Güncelle</h3>
       <div class="form">
         <label>
@@ -71,107 +77,99 @@
           <input id="invInput" type="number" inputmode="decimal" min="0" step="0.01" />
         </label>
         <button id="saveSummary" type="button">Kaydet</button>
-        <div class="muted small">Not: İlk sürümde yatırım değeri “manual”. Sonra portföy yapacağız.</div>
+        <div class="muted small">Not: Şimdilik yatırım toplamı manual. Portföy yakında.</div>
       </div>
     </section>
 
     <!-- TRANSACTIONS -->
     <section class="card tabPage hidden" id="tab-transactions">
-      <h2>Gelir–Gider</h2>
-
-      <form id="txForm" class="form">
-        <label>
-          Tür
-          <select id="type" required>
-            <option value="income">Gelir</option>
-            <option value="expense">Gider</option>
-          </select>
-        </label>
-
-        <label>
-          Tutar (₺)
-          <input id="amount" type="number" inputmode="decimal" min="0" step="0.01" required />
-        </label>
-
-        <label>
-          Kategori
-          <select id="category" required></select>
-        </label>
-
-        <label>
-          Tarih
-          <input id="date" type="date" required />
-        </label>
-
-        <label>
-          Not
-          <input id="note" type="text" maxlength="120" placeholder="Opsiyonel" />
-        </label>
-
-        <div class="row">
-          <button type="submit">Ekle</button>
-          <button type="button" id="seedBtn" class="secondary">Örnek Veri</button>
-          <button type="button" id="resetBtn" class="danger">Sıfırla</button>
-        </div>
-      </form>
-
-      <hr />
-
-      <h3>Filtre</h3>
-      <div class="form">
-        <label>
-          Ay
-          <input id="month" type="month" />
-        </label>
-
-        <label>
-          Kategori
-          <select id="filterCategory">
-            <option value="all">Hepsi</option>
-          </select>
-        </label>
-
-        <label>
-          Arama (Not)
-          <input id="q" type="text" placeholder="ör. kira, protein" />
-        </label>
-
-        <div class="row">
-          <button type="button" id="clearFilters" class="secondary">Filtreyi Temizle</button>
-          <button type="button" id="exportBtn">CSV Dışa Aktar</button>
-        </div>
-      </div>
-
-      <hr />
-
       <div class="row space">
-        <h3>Kayıtlar</h3>
-        <div class="muted" id="countInfo">0 kayıt</div>
+        <h2>Gelir–Gider</h2>
+        <div class="row">
+          <label class="muted small">Ay:
+            <input id="activeMonth" type="month" />
+          </label>
+        </div>
       </div>
 
-      <div class="tableWrap">
-        <table>
-          <thead>
-            <tr>
-              <th>Tarih</th>
-              <th>Tür</th>
-              <th>Kategori</th>
-              <th class="right">Tutar</th>
-              <th>Not</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody id="tbody"></tbody>
-        </table>
-      </div>
-    </section>
+      <nav class="subtabs">
+        <button type="button" class="subtab active" data-subtab="income">Gelir</button>
+        <button type="button" class="subtab" data-subtab="expense" disabled>Gider (yakında)</button>
+        <button type="button" class="subtab" data-subtab="net" disabled>Net (yakında)</button>
+      </nav>
 
-    <!-- INVESTMENTS -->
-    <section class="card tabPage hidden" id="tab-investments">
-      <h2>Yatırım</h2>
-      <p class="muted">
-        Şimdilik yatırım toplamını Özet ekranından giriyoruz. Sonraki sürüm: BTC/ETH/PAXG/fon portföyü.
-      </p>
+      <!-- INCOME -->
+      <section class="subPage" id="sub-income">
+        <h3>Sürekli Gelir Ekle</h3>
+        <form id="riForm" class="form">
+          <label>
+            Gelir adı
+            <input id="riName" type="text" placeholder="Harçlık, Burs, Freelance..." required />
+          </label>
+          <label>
+            Varsayılan miktar (₺)
+            <input id="riAmount" type="number" inputmode="decimal" min="0" step="0.01" required />
+          </label>
+          <label>
+            Beklenen gün (1-31)
+            <input id="riDay" type="number" inputmode="numeric" min="1" max="31" value="5" required />
+          </label>
+          <label class="row">
+            <input id="riActive" type="checkbox" checked />
+            <span>Aktif (her ay tekrarlasın)</span>
+          </label>
+          <button type="submit">Ekle</button>
+        </form>
+
+        <hr />
+
+        <h3>Sürekli Gelir Listesi</h3>
+        <div class="tableWrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Ad</th>
+                <th class="right">Varsayılan</th>
+                <th class="right">Gün</th>
+                <th>Aktif</th>
+                <th>Bu ay</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="riBody"></tbody>
+          </table>
+        </div>
+
+        <hr />
+
+        <div class="row space">
+          <h3>Takvim (Gelir Durumu)</h3>
+          <div class="muted small">
+            🟢 geldi • ⚪ bekleniyor • 🔴 gelmedi
+          </div>
+        </div>
+
+        <div class="calGrid" id="incomeCal"></div>
+
+        <div class="card miniCard">
+          <div class="row space">
+            <h3 style="margin:0;">Seçili Gün Detayı</h3>
+            <div class="muted small" id="selectedDayLabel">—</div>
+          </div>
+          <div id="dayDetails" class="muted small" style="margin-top:10px;">
+            Takvimden bir gün seç.
+          </div>
+        </div>
+      </section>
+
+      <!-- placeholders -->
+      <section class="subPage hidden" id="sub-expense">
+        <p class="muted">Gider kısmını bir sonraki adımda kuracağız.</p>
+      </section>
+
+      <section class="subPage hidden" id="sub-net">
+        <p class="muted">Net paneli bir sonraki adımda gelecek.</p>
+      </section>
     </section>
 
     <!-- INVENTORY -->
@@ -226,10 +224,16 @@
       </div>
     </section>
 
+    <!-- INVESTMENTS -->
+    <section class="card tabPage hidden" id="tab-investments">
+      <h2>Yatırım</h2>
+      <p class="muted">Yakında portföy.</p>
+    </section>
+
   </main>
 
   <footer class="container muted small">
-    v0.2 — Özet + Gelir/Gider + Envanter
+    v0.3 — Gelir Takvimi + NetWorth Grafik
   </footer>
 
   <script src="app.js"></script>
