@@ -3,19 +3,81 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Gelir-Gider Paneli</title>
+  <title>Accounter</title>
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
   <header class="container">
-    <h1>Gelir–Gider Paneli</h1>
+    <h1>Accounter</h1>
     <p class="muted">Kayıtlar cihazında saklanır (LocalStorage).</p>
   </header>
 
-  <main class="container grid">
-    <!-- Form -->
-    <section class="card">
-      <h2>Yeni Kayıt</h2>
+  <!-- Tabs -->
+  <nav class="tabs">
+    <button class="tab active" data-tab="dashboard">Özet</button>
+    <button class="tab" data-tab="transactions">Gelir-Gider</button>
+    <button class="tab" data-tab="investments">Yatırım</button>
+    <button class="tab" data-tab="inventory">Envanter</button>
+  </nav>
+
+  <main class="container">
+
+    <!-- DASHBOARD -->
+    <section class="card tabPage" id="tab-dashboard">
+      <h2>Genel Özet</h2>
+
+      <div class="summary">
+        <div class="pill">
+          <div class="muted">Toplam Nakit (manual)</div>
+          <div id="cashNow" class="big">₺0</div>
+        </div>
+        <div class="pill">
+          <div class="muted">Yatırım Değeri (manual)</div>
+          <div id="invNow" class="big">₺0</div>
+        </div>
+        <div class="pill">
+          <div class="muted">Toplam Varlık</div>
+          <div id="netWorth" class="big">₺0</div>
+        </div>
+      </div>
+
+      <hr />
+
+      <div class="summary">
+        <div class="pill">
+          <div class="muted">Bu Ay Gelir</div>
+          <div id="mIncome" class="big">₺0</div>
+        </div>
+        <div class="pill">
+          <div class="muted">Bu Ay Gider</div>
+          <div id="mExpense" class="big">₺0</div>
+        </div>
+        <div class="pill">
+          <div class="muted">Bu Ay Net</div>
+          <div id="mNet" class="big">₺0</div>
+        </div>
+      </div>
+
+      <hr />
+
+      <h3>Hızlı Güncelle</h3>
+      <div class="form">
+        <label>
+          Şu an Nakit (₺)
+          <input id="cashInput" type="number" inputmode="decimal" min="0" step="0.01" />
+        </label>
+        <label>
+          Şu an Yatırım Toplamı (₺)
+          <input id="invInput" type="number" inputmode="decimal" min="0" step="0.01" />
+        </label>
+        <button id="saveSummary" type="button">Kaydet</button>
+        <div class="muted small">Not: İlk sürümde yatırım değeri “manual”. Sonra portföy yapacağız.</div>
+      </div>
+    </section>
+
+    <!-- TRANSACTIONS -->
+    <section class="card tabPage hidden" id="tab-transactions">
+      <h2>Gelir–Gider</h2>
 
       <form id="txForm" class="form">
         <label>
@@ -52,26 +114,6 @@
           <button type="button" id="resetBtn" class="danger">Sıfırla</button>
         </div>
       </form>
-    </section>
-
-    <!-- Summary -->
-    <section class="card">
-      <h2>Özet</h2>
-
-      <div class="summary">
-        <div class="pill">
-          <div class="muted">Gelir</div>
-          <div id="sumIncome" class="big">₺0</div>
-        </div>
-        <div class="pill">
-          <div class="muted">Gider</div>
-          <div id="sumExpense" class="big">₺0</div>
-        </div>
-        <div class="pill">
-          <div class="muted">Net</div>
-          <div id="sumNet" class="big">₺0</div>
-        </div>
-      </div>
 
       <hr />
 
@@ -91,7 +133,7 @@
 
         <label>
           Arama (Not)
-          <input id="q" type="text" placeholder="ör. kira, protein, uçak" />
+          <input id="q" type="text" placeholder="ör. kira, protein" />
         </label>
 
         <div class="row">
@@ -99,12 +141,11 @@
           <button type="button" id="exportBtn">CSV Dışa Aktar</button>
         </div>
       </div>
-    </section>
 
-    <!-- Table -->
-    <section class="card full">
+      <hr />
+
       <div class="row space">
-        <h2>Kayıtlar</h2>
+        <h3>Kayıtlar</h3>
         <div class="muted" id="countInfo">0 kayıt</div>
       </div>
 
@@ -124,10 +165,71 @@
         </table>
       </div>
     </section>
+
+    <!-- INVESTMENTS -->
+    <section class="card tabPage hidden" id="tab-investments">
+      <h2>Yatırım</h2>
+      <p class="muted">
+        Şimdilik yatırım toplamını Özet ekranından giriyoruz. Sonraki sürüm: BTC/ETH/PAXG/fon portföyü.
+      </p>
+    </section>
+
+    <!-- INVENTORY -->
+    <section class="card tabPage hidden" id="tab-inventory">
+      <h2>Envanter</h2>
+
+      <form id="invForm" class="form">
+        <label>
+          Ürün
+          <input id="invName" type="text" placeholder="pirinç, yulaf, tavuk..." required />
+        </label>
+
+        <label>
+          Miktar
+          <input id="invQty" type="number" inputmode="decimal" min="0" step="0.01" required />
+        </label>
+
+        <label>
+          Birim
+          <select id="invUnit">
+            <option value="g">g</option>
+            <option value="kg">kg</option>
+            <option value="adet">adet</option>
+            <option value="porsiyon">porsiyon</option>
+          </select>
+        </label>
+
+        <label>
+          Az kaldı eşiği
+          <input id="invLow" type="number" inputmode="decimal" min="0" step="0.01" value="1" required />
+        </label>
+
+        <button type="submit">Ekle</button>
+      </form>
+
+      <hr />
+
+      <div class="tableWrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Ürün</th>
+              <th class="right">Miktar</th>
+              <th>Birim</th>
+              <th class="right">Eşik</th>
+              <th>Durum</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="invBody"></tbody>
+        </table>
+      </div>
+    </section>
+
   </main>
 
   <footer class="container muted small">
-    v0.1 — Sonraki adım: aylık grafik, bütçe hedefleri, yatırım entegrasyonu.
+    v0.2 — Özet + Gelir/Gider + Envanter
   </footer>
 
   <script src="app.js"></script>
