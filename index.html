@@ -328,57 +328,74 @@
   </section>
 </section>
 
-    <!-- INVENTORY -->
-    <section class="card tabPage hidden" id="tab-inventory">
-      <h2>Envanter</h2>
+    <h2>Envanter (Beslenme)</h2>
 
-      <form id="invForm" class="form">
-        <label>
-          Ürün
-          <input id="invName" type="text" placeholder="pirinç, yulaf, tavuk..." required />
-        </label>
+<form id="invForm" class="form">
+  <label>
+    Ürün
+    <input id="invName" type="text" placeholder="Tavuk, Yumurta, Pirinç..." required />
+  </label>
 
-        <label>
-          Miktar
-          <input id="invQty" type="number" inputmode="decimal" min="0" step="0.01" required />
-        </label>
+  <label>
+    Birim tipi
+    <select id="invUnit">
+      <option value="g">Gram</option>
+      <option value="adet">Adet</option>
+      <option value="paket">Paket</option>
+    </select>
+  </label>
 
-        <label>
-          Birim
-          <select id="invUnit">
-            <option value="g">g</option>
-            <option value="kg">kg</option>
-            <option value="adet">adet</option>
-            <option value="porsiyon">porsiyon</option>
-          </select>
-        </label>
+  <label>
+    Stok (birim cinsinden)
+    <input id="invQty" type="number" inputmode="decimal" min="0" step="0.01" required />
+  </label>
 
-        <label>
-          Az kaldı eşiği
-          <input id="invLow" type="number" inputmode="decimal" min="0" step="0.01" value="1" required />
-        </label>
+  <label>
+    Günlük tüketim (aynı birim)
+    <input id="invDaily" type="number" inputmode="decimal" min="0" step="0.01" required />
+  </label>
 
-        <button type="submit">Ekle</button>
-      </form>
+  <label>
+    Birim fiyat (₺ / birim)
+    <input id="invPrice" type="number" inputmode="decimal" min="0" step="0.01" required />
+  </label>
 
-      <hr />
+  <button type="submit">Ekle</button>
+</form>
 
-      <div class="tableWrap">
-        <table>
-          <thead>
-            <tr>
-              <th>Ürün</th>
-              <th class="right">Miktar</th>
-              <th>Birim</th>
-              <th class="right">Eşik</th>
-              <th>Durum</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody id="invBody"></tbody>
-        </table>
-      </div>
-    </section>
+<hr />
+
+<h3>Beslenme Öngörüsü (Seçilen Ay)</h3>
+<div class="summary">
+  <div class="pill">
+    <div class="muted">Aylık Tahmini</div>
+    <div id="foodMonthly" class="big">₺0</div>
+  </div>
+  <div class="pill">
+    <div class="muted">Günlük Ortalama</div>
+    <div id="foodDaily" class="big">₺0</div>
+  </div>
+</div>
+
+<div id="foodInsight" class="muted" style="margin-top:8px;">—</div>
+
+<hr />
+
+<div class="tableWrap">
+  <table>
+    <thead>
+      <tr>
+        <th>Ürün</th>
+        <th class="right">Stok</th>
+        <th class="right">Günlük</th>
+        <th class="right">Gün Yeter</th>
+        <th class="right">Aylık ₺</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody id="invBody"></tbody>
+  </table>
+</div>
 
     <!-- INVESTMENTS -->
     <section class="card tabPage hidden" id="tab-investments">
