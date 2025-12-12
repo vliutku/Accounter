@@ -1,11 +1,12 @@
-// ====== Accounter v0.5 (LocalStorage) ======
+// ====== Accounter v0.6 (LocalStorage) ======
+// Adds: Inventory food-cost forecast (month-based) with unit conversions
+// Backward compatible: if new inventory fields / DOM elements don't exist, no crash.
 
 const SUMMARY_KEY = "summary.v1";
 const NETWORTH_KEY = "networth.history.v1";
 
 const RI_MASTER_KEY = "ri.master.v1";
 const RI_MONTH_KEY  = "ri.month.v1";
-
 const EXTRA_INCOME_KEY = "income.extra.v1"; // [{id,date,amount,note}]
 
 // Expense
@@ -14,6 +15,7 @@ const BUDGET_MONTH_KEY  = "budget.month.v1";      // [{id,masterId,month,budget}
 const BUDGET_EXP_KEY    = "budget.expenses.v1";   // [{id,month,budgetId,date,amount,note}]
 const UNEXP_EXP_KEY     = "expense.unexpected.v1";// [{id,date,amount,note}]
 
+// Inventory
 const INVENTORY_KEY = "inventory.v1";
 
 const els = {
@@ -82,23 +84,37 @@ const els = {
   netExpense: document.getElementById("netExpense"),
   netLeft: document.getElementById("netLeft"),
   netInsight: document.getElementById("netInsight"),
-  foodInsight: document.getElementById("foodInsight"),
 
-  // inventory
+  // inventory form (old + new optional)
   invForm: document.getElementById("invForm"),
   invName: document.getElementById("invName"),
   invQty: document.getElementById("invQty"),
   invUnit: document.getElementById("invUnit"),
   invLow: document.getElementById("invLow"),
   invBody: document.getElementById("invBody"),
+
+  // new optional inventory fields (if you add to HTML later)
+  invDaily: document.getElementById("invDaily"),       // daily consumption
+  invPrice: document.getElementById("invPrice"),       // price
+  invPriceUnit: document.getElementById("invPriceUnit"), // price unit
+
+  // new optional inventory forecast panel (if you add to HTML later)
+  foodMonthLabel: document.getElementById("foodMonthLabel"),
+  foodForecastTotal: document.getElementById("foodForecastTotal"),
+  foodForecastDaily: document.getElementById("foodForecastDaily"),
+  foodForecastBudget: document.getElementById("foodForecastBudget"),
+  foodForecastDiff: document.getElementById("foodForecastDiff"),
+  foodShoppingList: document.getElementById("foodShoppingList"),
 };
 
 function uid() {
   return crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random().toString(16).slice(2);
 }
+
 function formatTRY(n) {
   return Number(n || 0).toLocaleString("tr-TR", { style: "currency", currency: "TRY" });
 }
+
 function escapeHtml(str) {
   return String(str)
     .replaceAll("&", "&amp;")
@@ -107,6 +123,7 @@ function escapeHtml(str) {
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#039;");
 }
+
 function todayISO() {
   const d = new Date();
   const yyyy = d.getFullYear();
@@ -114,14 +131,22 @@ function todayISO() {
   const dd = String(d.getDate()).padStart(2,"0");
   return `${yyyy}-${mm}-${dd}`;
 }
+
 function monthKey(d = new Date()) {
   const yyyy = d.getFullYear();
   const mm = String(d.getMonth()+1).padStart(2,"0");
   return `${yyyy}-${mm}`;
 }
+
+function parseMonth(monthStr) {
+  const [yyyy, mm] = String(monthStr).split("-").map(Number);
+  return { yyyy, mm };
+}
+
 function daysInMonth(yyyy, mm1to12) {
   return new Date(yyyy, mm1to12, 0).getDate();
 }
+
 function loadJSON(key, fallback) {
   try {
     const raw = localStorage.getItem(key);
@@ -129,6 +154,7 @@ function loadJSON(key, fallback) {
     return JSON.parse(raw) ?? fallback;
   } catch { return fallback; }
 }
+
 function saveJSON(key, value) {
   localStorage.setItem(key, JSON.stringify(value));
 }
@@ -156,7 +182,7 @@ function extraIncomeForMonth(month) {
 }
 function renderExtraIncome() {
   if (!els.eiBody) return;
-  const month = els.activeMonth.value || monthKey(new Date());
+  const month = els.activeMonth?.value || monthKey(new Date());
   const list = extraIncomeForMonth(month).sort((a,b)=> (a.date < b.date ? 1 : -1));
 
   els.eiBody.innerHTML = list.map(x => `
@@ -239,11 +265,12 @@ function autoStatusFor(instance, month) {
   if (monthKey(now) === month && now > dueDate) return "missed";
   return "pending";
 }
+
 let selectedDay = null;
 
 function renderRIMasterTable() {
   if (!els.riBody) return;
-  const month = els.activeMonth.value || monthKey(new Date());
+  const month = els.activeMonth?.value || monthKey(new Date());
   ensureMonthInstances(month);
 
   const master = loadRIMaster().sort((a,b)=>a.name.localeCompare(b.name,"tr"));
@@ -316,10 +343,10 @@ function renderRIMasterTable() {
 
 function renderIncomeCalendar() {
   if (!els.incomeCal) return;
-  const month = els.activeMonth.value || monthKey(new Date());
+  const month = els.activeMonth?.value || monthKey(new Date());
   ensureMonthInstances(month);
 
-  const [yyyy, mm] = month.split("-").map(Number);
+  const { yyyy, mm } = parseMonth(month);
   const dim = daysInMonth(yyyy, mm);
   const firstDow = new Date(yyyy, mm - 1, 1).getDay();
   const offset = (firstDow + 6) % 7;
@@ -382,7 +409,7 @@ function renderIncomeCalendar() {
 
 function renderSelectedDayDetails() {
   if (!els.dayDetails || !els.selectedDayLabel) return;
-  const month = els.activeMonth.value || monthKey(new Date());
+  const month = els.activeMonth?.value || monthKey(new Date());
   const inst = loadRIMonth().filter(x => x.month === month && x.type === "income" && !x.skipped);
 
   els.selectedDayLabel.textContent = selectedDay || "—";
@@ -429,7 +456,7 @@ function renderSelectedDayDetails() {
 function loadBudgetMaster(){ return loadJSON(BUDGET_MASTER_KEY, []); }
 function saveBudgetMaster(list){ saveJSON(BUDGET_MASTER_KEY, list); }
 
-function loadBudgetMonth(){ return loadJSON(BUDGET_MONTH_KEY, []); } // [{id,masterId,month,budget}]
+function loadBudgetMonth(){ return loadJSON(BUDGET_MONTH_KEY, []); }
 function saveBudgetMonth(list){ saveJSON(BUDGET_MONTH_KEY, list); }
 
 function ensureBudgetMonth(month){
@@ -438,9 +465,7 @@ function ensureBudgetMonth(month){
   for (const m of master) {
     if (!m.active) continue;
     const exists = bm.some(x => x.masterId === m.id && x.month === month);
-    if (!exists) {
-      bm.push({ id: uid(), masterId: m.id, month, budget: Number(m.defaultBudget) });
-    }
+    if (!exists) bm.push({ id: uid(), masterId: m.id, month, budget: Number(m.defaultBudget) });
   }
   saveBudgetMonth(bm);
 }
@@ -461,29 +486,22 @@ function getBudgetForMonth(masterId, month){
   return Number(m?.defaultBudget || 0);
 }
 
-// expenses under budgets
 function loadBudgetExpenses(){ return loadJSON(BUDGET_EXP_KEY, []); }
 function saveBudgetExpenses(list){ saveJSON(BUDGET_EXP_KEY, list); }
-function budgetExpensesForMonth(month){
-  return loadBudgetExpenses().filter(x => x.month === month);
-}
+function budgetExpensesForMonth(month){ return loadBudgetExpenses().filter(x => x.month === month); }
 
-// unexpected
 function loadUnexpected(){ return loadJSON(UNEXP_EXP_KEY, []); }
 function saveUnexpected(list){ saveJSON(UNEXP_EXP_KEY, list); }
-function unexpectedForMonth(month){
-  return loadUnexpected().filter(x => (x.date||"").startsWith(month));
-}
+function unexpectedForMonth(month){ return loadUnexpected().filter(x => (x.date||"").startsWith(month)); }
 
 function renderBudgets(){
   if (!els.bmBody) return;
-  const month = els.activeMonth.value || monthKey(new Date());
+  const month = els.activeMonth?.value || monthKey(new Date());
   ensureBudgetMonth(month);
 
   const master = loadBudgetMaster().sort((a,b)=>a.name.localeCompare(b.name,"tr"));
   const exp = budgetExpensesForMonth(month);
 
-  // dropdown for adding expense
   if (els.beBudgetId){
     const activeMasters = master.filter(m=>m.active);
     els.beBudgetId.innerHTML = activeMasters.map(m=>`<option value="${m.id}">${escapeHtml(m.name)}</option>`).join("");
@@ -516,7 +534,6 @@ function renderBudgets(){
     `;
   }).join("");
 
-  // budget change (month override)
   els.bmBody.querySelectorAll("input[data-bud]").forEach(inp=>{
     inp.addEventListener("change", ()=>{
       const id = inp.getAttribute("data-bud");
@@ -525,7 +542,6 @@ function renderBudgets(){
     });
   });
 
-  // toggle master active
   els.bmBody.querySelectorAll("button[data-btoggle]").forEach(btn=>{
     btn.addEventListener("click", ()=>{
       const id = btn.getAttribute("data-btoggle");
@@ -535,7 +551,6 @@ function renderBudgets(){
     });
   });
 
-  // delete category (and its expenses)
   els.bmBody.querySelectorAll("button[data-bdel]").forEach(btn=>{
     btn.addEventListener("click", ()=>{
       const id = btn.getAttribute("data-bdel");
@@ -550,7 +565,7 @@ function renderBudgets(){
 
 function renderBudgetExpenseList(){
   if (!els.beBody) return;
-  const month = els.activeMonth.value || monthKey(new Date());
+  const month = els.activeMonth?.value || monthKey(new Date());
   const masterMap = new Map(loadBudgetMaster().map(m=>[m.id,m.name]));
   const list = budgetExpensesForMonth(month).sort((a,b)=>(a.date < b.date ? 1 : -1));
 
@@ -575,7 +590,7 @@ function renderBudgetExpenseList(){
 
 function renderUnexpected(){
   if (!els.ueBody) return;
-  const month = els.activeMonth.value || monthKey(new Date());
+  const month = els.activeMonth?.value || monthKey(new Date());
   const list = unexpectedForMonth(month).sort((a,b)=>(a.date < b.date ? 1 : -1));
 
   els.ueBody.innerHTML = list.map(x=>`
@@ -615,7 +630,7 @@ function computeMonthlyExpense(month){
 
 function renderNetPanel(){
   if (!els.netIncome || !els.netExpense || !els.netLeft) return;
-  const month = els.activeMonth.value || monthKey(new Date());
+  const month = els.activeMonth?.value || monthKey(new Date());
   const income = computeMonthlyIncome(month);
   const exp = computeMonthlyExpense(month);
   const left = income - exp.total;
@@ -624,7 +639,6 @@ function renderNetPanel(){
   els.netExpense.textContent = formatTRY(exp.total);
   els.netLeft.textContent = formatTRY(left);
 
-  // insight: top category
   const master = loadBudgetMaster();
   const monthExp = budgetExpensesForMonth(month);
   const byCat = new Map();
@@ -746,88 +760,248 @@ function renderDashboard() {
   drawNetWorthChart();
 }
 
-});
-}
-
-// ====== Inventory (Smart – HTML değiştirmeden) ======
+// ====== Inventory: enhanced (forecast) ======
 function loadInventory() { return loadJSON(INVENTORY_KEY, []); }
 function saveInventory(list) { saveJSON(INVENTORY_KEY, list); }
 let inventory = loadInventory();
 
-/*
-  Varsayılan günlük tüketim ve fiyatlar
-  (İstediğin zaman burayı değiştir)
-*/
-const INVENTORY_DEFAULTS = {
-  g:      { daily: 250, price: 0.18 },   // gram → 250g/gün, 0.18 ₺/g (180 ₺/kg)
-  adet:   { daily: 3,   price: 4 },      // adet → 3/gün, 4 ₺/adet
-  paket:  { daily: 0.04, price: 1200 }   // paket → ~1/25 paket/gün
-};
+/**
+ * Unit system:
+ * - mass: g, kg  (base: g)
+ * - volume: ml, l (base: ml)
+ * - count: adet, paket, porsiyon (base: itself)
+ */
+function normUnit(u) {
+  const x = String(u || "").trim().toLowerCase();
+  // allow common variants
+  if (x === "gr") return "g";
+  if (x === "kilogram") return "kg";
+  if (x === "litre") return "l";
+  return x;
+}
+
+function unitKind(u) {
+  const x = normUnit(u);
+  if (x === "g" || x === "kg") return "mass";
+  if (x === "ml" || x === "l") return "volume";
+  return "count"; // adet, paket, porsiyon, etc
+}
+
+function toBaseQty(qty, unit) {
+  const x = Number(qty || 0);
+  const u = normUnit(unit);
+  const kind = unitKind(u);
+  if (kind === "mass") {
+    if (u === "kg") return x * 1000;
+    return x; // g
+  }
+  if (kind === "volume") {
+    if (u === "l") return x * 1000;
+    return x; // ml
+  }
+  return x; // count
+}
+
+function baseUnit(unit) {
+  const u = normUnit(unit);
+  const kind = unitKind(u);
+  if (kind === "mass") return "g";
+  if (kind === "volume") return "ml";
+  return u || "adet";
+}
+
+function pricePerBase(price, priceUnit) {
+  const p = Number(price || 0);
+  const u = normUnit(priceUnit);
+  const kind = unitKind(u);
+
+  if (p <= 0) return 0;
+
+  if (kind === "mass") {
+    // price per kg -> per g
+    if (u === "kg") return p / 1000;
+    return p; // per g
+  }
+  if (kind === "volume") {
+    if (u === "l") return p / 1000;
+    return p; // per ml
+  }
+  // count units: price per adet/paket/porsiyon
+  return p;
+}
 
 function renderInventory() {
   if (!els.invBody) return;
+  inventory = loadInventory();
 
-  const month = els.activeMonth.value || monthKey(new Date());
-  const [y, m] = month.split("-").map(Number);
-  const days = daysInMonth(y, m);
+  const month = els.activeMonth?.value || monthKey(new Date());
+  const { yyyy, mm } = parseMonth(month);
+  const dim = daysInMonth(yyyy, mm);
 
-  let totalMonthlyCost = 0;
+  // Sort by "days left" if daily use exists, otherwise name
+  const invSorted = [...inventory].sort((a,b)=>{
+    const da = estimateDaysLeft(a);
+    const db = estimateDaysLeft(b);
+    if (da !== null && db !== null) return da - db;
+    if (da !== null) return -1;
+    if (db !== null) return 1;
+    return String(a.name||"").localeCompare(String(b.name||""), "tr");
+  });
 
-  els.invBody.innerHTML = inventory.map(it => {
-    const def = INVENTORY_DEFAULTS[it.unit] || { daily: 1, price: 0 };
-    const daily = def.daily;
-    const price = def.price;
+  els.invBody.innerHTML = invSorted.map(it => {
+    const unit = normUnit(it.unit);
+    const isLow = Number(it.qty) <= Number(it.low);
 
-    const daysLeft = daily > 0 ? Math.floor(it.qty / daily) : 0;
-    const monthlyCost = daily * days * price;
-    totalMonthlyCost += monthlyCost;
+    const daysLeft = estimateDaysLeft(it); // number|null
+    const daysBadge = (daysLeft === null)
+      ? `<span class="muted small">—</span>`
+      : `<span class="muted small">${daysLeft.toFixed(1)} gün</span>`;
 
-    let status = "🟢";
-    if (daysLeft <= 2) status = "🔴";
-    else if (daysLeft <= 6) status = "🟠";
+    const traffic = daysLeft === null ? ""
+      : (daysLeft <= 2 ? "🔴" : (daysLeft <= 6 ? "🟠" : "🟢"));
+
+    // Monthly cost estimate for this item
+    const mCost = estimateMonthlyCost(it, dim);
 
     return `
       <tr>
         <td>${escapeHtml(it.name)}</td>
-        <td class="right">${it.qty} ${it.unit}</td>
-        <td class="right">${status} ${daysLeft} gün</td>
-        <td class="right">${formatTRY(monthlyCost)}</td>
-        <td class="right">
-          <button class="secondary" data-invdel="${it.id}">Sil</button>
+        <td class="right">${Number(it.qty)}</td>
+        <td>${escapeHtml(unit)}</td>
+        <td class="right">${Number(it.low)}</td>
+        <td>
+          ${traffic} ${isLow ? "Az kaldı" : "Normal"} ${daysBadge}
+          ${mCost > 0 ? `<div class="muted small">Aylık ~ ${formatTRY(mCost)}</div>` : `<div class="muted small">Aylık: —</div>`}
         </td>
+        <td class="right"><button type="button" class="secondary" data-invdel="${it.id}">Sil</button></td>
       </tr>
     `;
   }).join("");
 
-  // Beslenme bütçesiyle karşılaştır (ENVANTER İÇİN)
-const food = loadBudgetMaster().find(b => b.name.toLowerCase() === "beslenme");
-
-if (els.foodInsight) {
-  if (food) {
-    const diff = food.defaultBudget - totalMonthlyCost;
-    els.foodInsight.textContent =
-      diff >= 0
-        ? `Beslenme bütçenle uyumlu ✅ (${formatTRY(diff)} pay var)`
-        : `Beslenme bütçesini aşıyorsun ⚠️ (${formatTRY(-diff)} fazla)`;
-  } else {
-    els.foodInsight.textContent =
-      "Beslenme bütçesi yok. Gider → Standart Giderler’den 'Beslenme' ekle.";
-  }
-}
-
   els.invBody.querySelectorAll("button[data-invdel]").forEach(btn => {
     btn.addEventListener("click", () => {
       const id = btn.getAttribute("data-invdel");
-      inventory = inventory.filter(x => x.id !== id);
-      saveInventory(inventory);
-      renderInventory();
+      const next = loadInventory().filter(x => x.id !== id);
+      saveInventory(next);
+      inventory = next;
+      renderAll();
     });
   });
+
+  // Forecast panel (if exists in HTML)
+  renderFoodForecastPanel();
+}
+
+function estimateDaysLeft(item) {
+  // dailyUse + unitDaily + priceUnit optional; we treat daily use in same "unit" unless specified.
+  const daily = Number(item.dailyUse || 0);
+  if (!daily || daily <= 0) return null;
+
+  // dailyUseUnit: if present use it, else fallback to item.unit
+  const dailyUnit = normUnit(item.dailyUnit || item.unit);
+  const stockUnit = normUnit(item.unit);
+
+  // Convert both to same base
+  const stockBase = toBaseQty(item.qty, stockUnit);
+  const dailyBase = toBaseQty(daily, dailyUnit);
+
+  if (dailyBase <= 0) return null;
+  return stockBase / dailyBase;
+}
+
+function estimateMonthlyCost(item, monthDays) {
+  const daily = Number(item.dailyUse || 0);
+  const price = Number(item.price || 0);
+  if (!daily || daily <= 0 || !price || price <= 0) return 0;
+
+  const dailyUnit = normUnit(item.dailyUnit || item.unit);
+  const pUnit = normUnit(item.priceUnit || item.unit);
+
+  const dailyBase = toBaseQty(daily, dailyUnit);
+  const ppb = pricePerBase(price, pUnit);
+
+  if (dailyBase <= 0 || ppb <= 0) return 0;
+  return dailyBase * Number(monthDays || 30) * ppb;
+}
+
+function findNutritionBudgetForMonth(month) {
+  // Find category name like "Beslenme" in budgets; use month override
+  ensureBudgetMonth(month);
+  const master = loadBudgetMaster();
+  const bes = master.find(x => String(x.name||"").toLowerCase().includes("beslenme"));
+  if (!bes) return null;
+  return getBudgetForMonth(bes.id, month);
+}
+
+function renderFoodForecastPanel() {
+  // Only if panel exists
+  if (!els.foodForecastTotal || !els.foodForecastDaily || !els.foodMonthLabel) return;
+
+  const month = els.activeMonth?.value || monthKey(new Date());
+  const { yyyy, mm } = parseMonth(month);
+  const dim = daysInMonth(yyyy, mm);
+
+  const list = loadInventory();
+  const total = list.reduce((s,it)=> s + estimateMonthlyCost(it, dim), 0);
+  const dailyAvg = dim ? (total / dim) : 0;
+
+  els.foodMonthLabel.textContent = `${month} (${dim} gün)`;
+  els.foodForecastTotal.textContent = formatTRY(total);
+  els.foodForecastDaily.textContent = formatTRY(dailyAvg);
+
+  const bud = findNutritionBudgetForMonth(month);
+  if (els.foodForecastBudget) els.foodForecastBudget.textContent = bud == null ? "—" : formatTRY(bud);
+
+  if (els.foodForecastDiff) {
+    if (bud == null) {
+      els.foodForecastDiff.textContent = "Beslenme bütçesi yok (Gider → Standart Giderler'e 'Beslenme' ekleyebilirsin).";
+    } else {
+      const diff = Number(bud) - Number(total);
+      els.foodForecastDiff.textContent = diff >= 0
+        ? `Bütçeye göre +${formatTRY(diff)} alan var ✅`
+        : `Bütçeyi ${formatTRY(Math.abs(diff))} aşıyorsun ⚠️`;
+    }
+  }
+
+  // Shopping list: low days or low qty
+  if (els.foodShoppingList) {
+    const urgent = list
+      .map(it => {
+        const d = estimateDaysLeft(it);
+        const isLow = Number(it.qty) <= Number(it.low);
+        const urgentByDays = (d !== null && d <= 3);
+        if (urgentByDays || isLow) {
+          return {
+            name: it.name,
+            unit: it.unit,
+            qty: it.qty,
+            daysLeft: d
+          };
+        }
+        return null;
+      })
+      .filter(Boolean)
+      .sort((a,b)=>{
+        const da = a.daysLeft ?? 9999;
+        const db = b.daysLeft ?? 9999;
+        return da - db;
+      });
+
+    if (!urgent.length) {
+      els.foodShoppingList.innerHTML = `<div class="muted">Acil alınacak yok ✅</div>`;
+    } else {
+      els.foodShoppingList.innerHTML = urgent.map(x=>{
+        const d = x.daysLeft === null ? "—" : `${x.daysLeft.toFixed(1)} gün`;
+        return `<div>🛒 <strong>${escapeHtml(x.name)}</strong> — ${d}</div>`;
+      }).join("");
+    }
+  }
 }
 
 // ====== Render All ======
 function renderAll() {
   renderDashboard();
+
   renderRIMasterTable();
   renderExtraIncome();
   renderIncomeCalendar();
@@ -920,10 +1094,10 @@ function init() {
   // budget expense add
   els.beForm?.addEventListener("submit", (e) => {
     e.preventDefault();
-    const month = els.activeMonth.value || monthKey(new Date());
-    const budgetId = els.beBudgetId.value;
-    const date = els.beDate.value;
-    const amount = Number(els.beAmount.value || 0);
+    const month = els.activeMonth?.value || monthKey(new Date());
+    const budgetId = els.beBudgetId?.value;
+    const date = els.beDate?.value;
+    const amount = Number(els.beAmount?.value || 0);
     const note = (els.beNote?.value || "").trim();
     if (!budgetId) return alert("Kategori seç.");
     if (!date) return alert("Tarih gerekli.");
@@ -933,7 +1107,7 @@ function init() {
     list.push({ id: uid(), month, budgetId, date, amount, note });
     saveBudgetExpenses(list);
 
-    els.beAmount.value = "";
+    if (els.beAmount) els.beAmount.value = "";
     if (els.beNote) els.beNote.value = "";
     renderAll();
   });
@@ -941,8 +1115,8 @@ function init() {
   // unexpected add
   els.ueForm?.addEventListener("submit", (e) => {
     e.preventDefault();
-    const date = els.ueDate.value;
-    const amount = Number(els.ueAmount.value || 0);
+    const date = els.ueDate?.value;
+    const amount = Number(els.ueAmount?.value || 0);
     const note = (els.ueNote?.value || "").trim();
     if (!date) return alert("Tarih gerekli.");
     if (amount <= 0) return alert("Miktar 0'dan büyük olmalı.");
@@ -951,38 +1125,49 @@ function init() {
     list.push({ id: uid(), date, amount, note });
     saveUnexpected(list);
 
-    els.ueAmount.value = "";
+    if (els.ueAmount) els.ueAmount.value = "";
     if (els.ueNote) els.ueNote.value = "";
     renderAll();
   });
 
   // dashboard save
   els.saveSummary?.addEventListener("click", () => {
-    const cashNow = Number(els.cashInput.value || 0);
-    const invNow = Number(els.invInput.value || 0);
+    const cashNow = Number(els.cashInput?.value || 0);
+    const invNow = Number(els.invInput?.value || 0);
     saveSummary({ cashNow, invNow });
     upsertNetWorthHistory(monthKey(new Date()), cashNow, invNow);
     renderDashboard();
   });
 
-  // inventory
+  // inventory add (enhanced)
   els.invForm?.addEventListener("submit", (e) => {
     e.preventDefault();
-      const y = window.scrollY;
+
     const item = {
       id: uid(),
-      name: els.invName.value.trim(),
-      qty: Number(els.invQty.value),
-      unit: els.invUnit.value,
-      low: Number(els.invLow.value),
+      name: els.invName?.value?.trim(),
+      qty: Number(els.invQty?.value),
+      unit: els.invUnit?.value,
+      low: Number(els.invLow?.value),
+
+      // new optional fields (if present in HTML)
+      dailyUse: els.invDaily ? Number(els.invDaily.value || 0) : 0,
+      dailyUnit: els.invDaily ? (els.invUnit?.value || "") : "", // keep same unit unless you add separate unit later
+      price: els.invPrice ? Number(els.invPrice.value || 0) : 0,
+      priceUnit: els.invPriceUnit ? els.invPriceUnit.value : (els.invUnit?.value || "")
     };
+
     if (!item.name) return;
-    inventory.push(item);
-    saveInventory(inventory);
-    els.invName.value = "";
-    els.invQty.value = "";
-renderAll();
-requestAnimationFrame(() => window.scrollTo(0, y));
+
+    const list = loadInventory();
+    list.push(item);
+    saveInventory(list);
+    inventory = list;
+
+    if (els.invName) els.invName.value = "";
+    if (els.invQty) els.invQty.value = "";
+    // keep unit as user preference
+    renderAll();
   });
 
   renderAll();
