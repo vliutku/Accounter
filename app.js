@@ -746,6 +746,9 @@ function renderDashboard() {
   drawNetWorthChart();
 }
 
+});
+}
+
 // ====== Inventory (Smart – HTML değiştirmeden) ======
 function loadInventory() { return loadJSON(INVENTORY_KEY, []); }
 function saveInventory(list) { saveJSON(INVENTORY_KEY, list); }
