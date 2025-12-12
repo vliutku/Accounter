@@ -1,7 +1,7 @@
-// ====== Accounter v1.0 (TRY income/expense, USD net worth with manual FX, simple investments) ======
+// ====== Accounter v1.1 (TRY income/expense, USD net worth with manual FX, simple investments, inventory) ======
 
-const SUMMARY_KEY = "summary.v3";          // { cashTry, fxTryPerUsd }
-const NETWORTH_KEY = "networth.history.v2"; // [{month, netWorthUsd}]
+const SUMMARY_KEY = "summary.v3";          
+const NETWORTH_KEY = "networth.history.v2";
 
 const RI_MASTER_KEY = "ri.master.v1";
 const RI_MONTH_KEY  = "ri.month.v1";
@@ -13,11 +13,15 @@ const BUDGET_EXP_KEY    = "budget.expenses.v1";
 const UNEXP_EXP_KEY     = "expense.unexpected.v1";
 
 // Simple investments
-const INST_KEY = "inv.simple.instruments.v1"; // [{id,name,valueUsd,pnlUsd}]
-const GOAL_KEY = "goal.usd.v1";               // { goalUsd }
+const INST_KEY = "inv.simple.instruments.v1";
+const GOAL_KEY = "goal.usd.v1";
 
 // Notes
-const NOTES_KEY = "notes.monthly.v1";      // [{month,text,updatedAt}]
+const NOTES_KEY = "notes.monthly.v1";
+
+// Inventory
+const INV_ITEMS_KEY = "inventory.items.v1";      // [{id,name,unit,qty,priceTry,low}]
+const INV_MONTHLY_KEY = "inventory.monthly.v1";  // [{id, month, monthlyUse}]
 
 const els = {
   tabs: () => document.querySelectorAll(".tab"),
@@ -90,16 +94,14 @@ const els = {
   netLeft: document.getElementById("netLeft"),
   netInsight: document.getElementById("netInsight"),
 
-  // investments (simple)
+  // investments
   invTotalUsd: document.getElementById("invTotalUsd"),
   invTotalPnlUsd: document.getElementById("invTotalPnlUsd"),
   invNetWorthUsd: document.getElementById("invNetWorthUsd"),
-
   goalUsd: document.getElementById("goalUsd"),
   saveGoal: document.getElementById("saveGoal"),
   goalInfo: document.getElementById("goalInfo"),
   goalBar: document.getElementById("goalBar"),
-
   instForm: document.getElementById("instForm"),
   instName: document.getElementById("instName"),
   instValue: document.getElementById("instValue"),
@@ -107,6 +109,21 @@ const els = {
   instBody: document.getElementById("instBody"),
   instPie: document.getElementById("instPie"),
   instLegend: document.getElementById("instLegend"),
+
+  // inventory
+  invMonth: document.getElementById("invMonth"),
+  invRecommendedTry: document.getElementById("invRecommendedTry"),
+  invRiskCount: document.getElementById("invRiskCount"),
+  invItemCount: document.getElementById("invItemCount"),
+  invInsight: document.getElementById("invInsight"),
+  invForm: document.getElementById("invForm"),
+  invName: document.getElementById("invName"),
+  invUnit: document.getElementById("invUnit"),
+  invQty: document.getElementById("invQty"),
+  invPrice: document.getElementById("invPrice"),
+  invMonthly: document.getElementById("invMonthly"),
+  invLow: document.getElementById("invLow"),
+  invBody: document.getElementById("invBody"),
 
   // notes
   noteMonth: document.getElementById("noteMonth"),
@@ -131,14 +148,12 @@ function loadJSON(key, fallback) {
 function saveJSON(key, value) {
   localStorage.setItem(key, JSON.stringify(value));
 }
-
 function formatTRY(n) {
   return Number(n || 0).toLocaleString("tr-TR", { style: "currency", currency: "TRY" });
 }
 function formatUSD(n) {
   return Number(n || 0).toLocaleString("en-US", { style: "currency", currency: "USD" });
 }
-
 function escapeHtml(str) {
   return String(str ?? "")
     .replaceAll("&", "&amp;")
@@ -200,18 +215,19 @@ function exportAllData() {
     RI_MASTER_KEY, RI_MONTH_KEY, EXTRA_INCOME_KEY,
     BUDGET_MASTER_KEY, BUDGET_MONTH_KEY, BUDGET_EXP_KEY, UNEXP_EXP_KEY,
     INST_KEY, GOAL_KEY,
-    NOTES_KEY
+    NOTES_KEY,
+    INV_ITEMS_KEY, INV_MONTHLY_KEY
   ];
   const data = {};
   for (const k of keys) data[k] = loadJSON(k, null);
   const stamp = new Date().toISOString();
-  exportJSON(`accounter-backup-all-${stamp.slice(0,10)}.json`, { version: "1.0", exportedAt: stamp, data });
+  exportJSON(`accounter-backup-all-${stamp.slice(0,10)}.json`, { version: "1.1", exportedAt: stamp, data });
 }
 
 function exportMonthData(month) {
   const stamp = new Date().toISOString();
   exportJSON(`accounter-backup-${month}-${stamp.slice(11,19).replaceAll(":","")}.json`, {
-    version: "1.0",
+    version: "1.1",
     exportedAt: stamp,
     month,
     monthView: {
@@ -224,6 +240,10 @@ function exportMonthData(month) {
         budgetMonth: loadJSON(BUDGET_MONTH_KEY, []).filter(x=>x.month===month),
         budgetExpenses: loadJSON(BUDGET_EXP_KEY, []).filter(x=>x.month===month),
         unexpected: loadJSON(UNEXP_EXP_KEY, []).filter(x=>(x.date||"").startsWith(month)),
+      },
+      inventory: {
+        items: loadJSON(INV_ITEMS_KEY, []),
+        monthly: loadJSON(INV_MONTHLY_KEY, []).filter(x=>x.month===month),
       },
       note: loadJSON(NOTES_KEY, []).find(x=>x.month===month) || null
     },
@@ -818,7 +838,6 @@ function drawPie(canvas, items) {
     ang = a2;
   });
 
-  // center hole (donut)
   ctx.fillStyle = "rgba(15,18,25,1)";
   ctx.beginPath();
   ctx.arc(cx,cy,r*0.55,0,Math.PI*2);
@@ -852,6 +871,160 @@ function renderNotes(){
   const n = getNote(m);
   els.noteText.value = n?.text || "";
   els.noteMeta.textContent = n?.updatedAt ? `Son güncelleme: ${n.updatedAt}` : "Henüz kayıt yok.";
+}
+
+// ===== Inventory =====
+function loadInvItems(){ return loadJSON(INV_ITEMS_KEY, []); }
+function saveInvItems(list){ saveJSON(INV_ITEMS_KEY, list); }
+
+function loadInvMonthly(){ return loadJSON(INV_MONTHLY_KEY, []); }
+function saveInvMonthly(list){ saveJSON(INV_MONTHLY_KEY, list); }
+
+function getMonthlyUse(itemId, month){
+  const rows = loadInvMonthly();
+  const r = rows.find(x=>x.id===itemId && x.month===month);
+  return Number(r?.monthlyUse || 0);
+}
+function setMonthlyUse(itemId, month, monthlyUse){
+  const rows = loadInvMonthly();
+  const idx = rows.findIndex(x=>x.id===itemId && x.month===month);
+  const row = { id: itemId, month, monthlyUse: Number(monthlyUse||0) };
+  if (idx>=0) rows[idx]=row; else rows.push(row);
+  saveInvMonthly(rows);
+}
+
+// unit conversion so monthly cost makes sense (g/kg)
+function normalizedQty(unit, qty){
+  const q = Number(qty||0);
+  if (unit === "kg") return q * 1000;  // as grams
+  if (unit === "g") return q;
+  return q; // adet/paket stays as-is
+}
+function normalizeUnitLabel(unit){
+  if (unit === "kg") return "kg";
+  if (unit === "g") return "g";
+  if (unit === "adet") return "adet";
+  if (unit === "paket") return "paket";
+  return unit;
+}
+
+// cost: monthlyUse * price (price is per unit shown)
+function monthlyCostTry(item, month){
+  const use = getMonthlyUse(item.id, month);
+  return use * Number(item.priceTry||0);
+}
+
+// risk: will stock cover month usage?
+function isRisk(item, month){
+  const use = getMonthlyUse(item.id, month);
+  if (use <= 0) return false;
+  const qty = Number(item.qty||0);
+  return qty < use;
+}
+
+function statusLabel(item, month){
+  const qty = Number(item.qty||0);
+  const low = Number(item.low||0);
+  const risk = isRisk(item, month);
+
+  if (qty <= 0) return "🔴 yok";
+  if (risk) return "🟠 ay yetmez";
+  if (qty <= low) return "🟡 az";
+  return "🟢 iyi";
+}
+
+function renderInventory(){
+  if (!els.invBody) return;
+
+  const month = els.invMonth?.value || monthKey(new Date());
+  const items = loadInvItems().slice().sort((a,b)=>String(a.name||"").localeCompare(String(b.name||""),"tr"));
+
+  const rec = items.reduce((s,it)=>s + monthlyCostTry(it, month), 0);
+  const riskCount = items.filter(it=>isRisk(it, month)).length;
+
+  if (els.invRecommendedTry) els.invRecommendedTry.textContent = formatTRY(rec);
+  if (els.invRiskCount) els.invRiskCount.textContent = String(riskCount);
+  if (els.invItemCount) els.invItemCount.textContent = String(items.length);
+
+  els.invBody.innerHTML = items.map(it=>{
+    const mUse = getMonthlyUse(it.id, month);
+    const mCost = monthlyCostTry(it, month);
+    const st = statusLabel(it, month);
+
+    return `
+      <tr>
+        <td><strong>${escapeHtml(it.name)}</strong></td>
+        <td>${normalizeUnitLabel(it.unit)}</td>
+        <td class="right">
+          <input data-qty="${it.id}" type="number" inputmode="decimal" min="0" step="0.01"
+                 value="${Number(it.qty||0)}" style="width:110px;" />
+        </td>
+        <td class="right">
+          <input data-price="${it.id}" type="number" inputmode="decimal" min="0" step="0.01"
+                 value="${Number(it.priceTry||0)}" style="width:110px;" />
+        </td>
+        <td class="right">
+          <input data-use="${it.id}" type="number" inputmode="decimal" min="0" step="0.01"
+                 value="${Number(mUse||0)}" style="width:110px;" />
+        </td>
+        <td class="right">${formatTRY(mCost)}</td>
+        <td>${st}</td>
+        <td class="right">
+          <button type="button" class="danger" data-invdel="${it.id}">Sil</button>
+        </td>
+      </tr>
+    `;
+  }).join("");
+
+  // qty update
+  els.invBody.querySelectorAll("input[data-qty]").forEach(inp=>{
+    inp.addEventListener("change", ()=>{
+      const id = inp.getAttribute("data-qty");
+      const v = Number(inp.value||0);
+      saveInvItems(loadInvItems().map(x=>x.id===id?{...x, qty:v}:x));
+      renderAll();
+    });
+  });
+
+  // price update
+  els.invBody.querySelectorAll("input[data-price]").forEach(inp=>{
+    inp.addEventListener("change", ()=>{
+      const id = inp.getAttribute("data-price");
+      const v = Number(inp.value||0);
+      saveInvItems(loadInvItems().map(x=>x.id===id?{...x, priceTry:v}:x));
+      renderAll();
+    });
+  });
+
+  // monthly use update (per month)
+  els.invBody.querySelectorAll("input[data-use]").forEach(inp=>{
+    inp.addEventListener("change", ()=>{
+      const id = inp.getAttribute("data-use");
+      const v = Number(inp.value||0);
+      setMonthlyUse(id, month, v);
+      renderAll();
+    });
+  });
+
+  // delete
+  els.invBody.querySelectorAll("button[data-invdel]").forEach(btn=>{
+    btn.addEventListener("click", ()=>{
+      const id = btn.getAttribute("data-invdel");
+      if(!confirm("Bu ürünü silmek istiyor musun?")) return;
+      saveInvItems(loadInvItems().filter(x=>x.id!==id));
+      saveInvMonthly(loadInvMonthly().filter(x=>x.id!==id));
+      renderAll();
+    });
+  });
+
+  // insight text
+  if (els.invInsight) {
+    const risky = items.filter(it=>isRisk(it, month)).slice(0,5).map(it=>it.name);
+    els.invInsight.textContent =
+      risky.length
+        ? `Bu ay stok yetmeyebilir: ${risky.join(", ")}`
+        : "Bu ay için stoklar genel olarak yeterli görünüyor.";
+  }
 }
 
 // ===== UI Tabs =====
@@ -938,7 +1111,6 @@ function renderInvestmentsSimple() {
         </tr>
       `).join("");
 
-    // update fields
     els.instBody.querySelectorAll("input[data-val]").forEach(inp=>{
       inp.addEventListener("change", ()=>{
         const id = inp.getAttribute("data-val");
@@ -964,7 +1136,6 @@ function renderInvestmentsSimple() {
     });
   }
 
-  // pie
   const pieItems = list.filter(x=>Number(x.valueUsd||0)>0).map(x=>({ label: x.name, value: Number(x.valueUsd||0) }));
   drawPie(els.instPie, pieItems);
 
@@ -976,14 +1147,13 @@ function renderInvestmentsSimple() {
       els.instLegend.innerHTML = pieItems
         .slice()
         .sort((a,b)=>b.value-a.value)
-        .map((x,i)=>{
+        .map((x)=>{
           const pct = total>0 ? (x.value/total*100) : 0;
           return `<div>• ${escapeHtml(x.label)} — ${formatUSD(x.value)} (${pct.toFixed(1)}%)</div>`;
         }).join("");
     }
   }
 
-  // goal
   const g = loadGoal();
   if (els.goalUsd) els.goalUsd.value = Number(g.goalUsd||0) || "";
   if (els.goalInfo && els.goalBar) {
@@ -1019,6 +1189,7 @@ function renderAll() {
   renderNetPanel();
 
   renderInvestmentsSimple();
+  renderInventory();
   renderNotes();
 }
 
@@ -1030,6 +1201,7 @@ function init() {
   const nowM = monthKey(new Date());
   if (els.activeMonth) els.activeMonth.value = nowM;
   if (els.noteMonth) els.noteMonth.value = nowM;
+  if (els.invMonth) els.invMonth.value = nowM;
 
   const t = todayISO();
   if (els.eiDate) els.eiDate.value = t;
@@ -1038,6 +1210,7 @@ function init() {
 
   els.activeMonth?.addEventListener("input", () => { selectedDay = null; renderAll(); });
   els.noteMonth?.addEventListener("input", () => { renderNotes(); });
+  els.invMonth?.addEventListener("input", () => { renderInventory(); });
 
   // dashboard save
   els.saveSummary?.addEventListener("click", () => {
@@ -1188,6 +1361,38 @@ function init() {
     renderAll();
   });
 
+  // inventory add
+  els.invForm?.addEventListener("submit", (e)=>{
+    e.preventDefault();
+    const name = String(els.invName?.value||"").trim();
+    const unit = String(els.invUnit?.value||"g");
+    const qty = Number(els.invQty?.value||0);
+    const priceTry = Number(els.invPrice?.value||0);
+    const low = Number(els.invLow?.value||0);
+    const month = els.invMonth?.value || monthKey(new Date());
+    const monthlyUse = Number(els.invMonthly?.value||0);
+
+    if (!name) return alert("Ürün adı yaz.");
+    if (qty < 0) return alert("Stok negatif olamaz.");
+    if (priceTry < 0) return alert("Fiyat negatif olamaz.");
+    if (low < 0) return alert("Eşik negatif olamaz.");
+
+    const items = loadInvItems();
+    const id = uid();
+    items.push({ id, name, unit, qty, priceTry, low });
+    saveInvItems(items);
+
+    if (monthlyUse > 0) setMonthlyUse(id, month, monthlyUse);
+
+    els.invName.value = "";
+    els.invQty.value = "";
+    els.invPrice.value = "";
+    els.invMonthly.value = "";
+    els.invLow.value = "1";
+
+    renderAll();
+  });
+
   // notes
   els.saveNote?.addEventListener("click", ()=>{
     const m = els.noteMonth?.value || monthKey(new Date());
@@ -1200,13 +1405,6 @@ function init() {
     upsertNote(m, "");
     renderNotes();
   });
-
-  // defaults
-  const s = loadSummary();
-  if (!s.fxTryPerUsd || s.fxTryPerUsd <= 0) {
-    // leave empty for manual; but keep stable defaults
-    saveSummary({ cashTry: Number(s.cashTry||0), fxTryPerUsd: Number(s.fxTryPerUsd||0) });
-  }
 
   renderAll();
 }
