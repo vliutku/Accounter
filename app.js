@@ -745,28 +745,65 @@ function renderDashboard() {
   drawNetWorthChart();
 }
 
-// ====== Inventory (aynı) ======
+// ====== Inventory (Smart – HTML değiştirmeden) ======
 function loadInventory() { return loadJSON(INVENTORY_KEY, []); }
 function saveInventory(list) { saveJSON(INVENTORY_KEY, list); }
 let inventory = loadInventory();
 
+/*
+  Varsayılan günlük tüketim ve fiyatlar
+  (İstediğin zaman burayı değiştir)
+*/
+const INVENTORY_DEFAULTS = {
+  g:      { daily: 250, price: 0.18 },   // gram → 250g/gün, 0.18 ₺/g (180 ₺/kg)
+  adet:   { daily: 3,   price: 4 },      // adet → 3/gün, 4 ₺/adet
+  paket:  { daily: 0.04, price: 1200 }   // paket → ~1/25 paket/gün
+};
+
 function renderInventory() {
   if (!els.invBody) return;
-  inventory.sort((a,b)=>a.name.localeCompare(b.name,"tr"));
+
+  const month = els.activeMonth.value || monthKey(new Date());
+  const [y, m] = month.split("-").map(Number);
+  const days = daysInMonth(y, m);
+
+  let totalMonthlyCost = 0;
 
   els.invBody.innerHTML = inventory.map(it => {
-    const isLow = Number(it.qty) <= Number(it.low);
+    const def = INVENTORY_DEFAULTS[it.unit] || { daily: 1, price: 0 };
+    const daily = def.daily;
+    const price = def.price;
+
+    const daysLeft = daily > 0 ? Math.floor(it.qty / daily) : 0;
+    const monthlyCost = daily * days * price;
+    totalMonthlyCost += monthlyCost;
+
+    let status = "🟢";
+    if (daysLeft <= 2) status = "🔴";
+    else if (daysLeft <= 6) status = "🟠";
+
     return `
       <tr>
         <td>${escapeHtml(it.name)}</td>
-        <td class="right">${Number(it.qty)}</td>
-        <td>${escapeHtml(it.unit)}</td>
-        <td class="right">${Number(it.low)}</td>
-        <td>${isLow ? "⚠️ Az kaldı" : "✅ Normal"}</td>
-        <td class="right"><button class="secondary" data-invdel="${it.id}">Sil</button></td>
+        <td class="right">${it.qty} ${it.unit}</td>
+        <td class="right">${status} ${daysLeft} gün</td>
+        <td class="right">${formatTRY(monthlyCost)}</td>
+        <td class="right">
+          <button class="secondary" data-invdel="${it.id}">Sil</button>
+        </td>
       </tr>
     `;
   }).join("");
+
+  // Beslenme bütçesiyle karşılaştır
+  const food = loadBudgetMaster().find(b => b.name.toLowerCase() === "beslenme");
+  if (food && els.netInsight) {
+    const diff = food.defaultBudget - totalMonthlyCost;
+    els.netInsight.textContent =
+      diff >= 0
+        ? `Beslenme bütçenle uyumlu ✅ (${formatTRY(diff)} pay var)`
+        : `Beslenme bütçesini aşıyorsun ⚠️ (${formatTRY(-diff)} fazla)`;
+  }
 
   els.invBody.querySelectorAll("button[data-invdel]").forEach(btn => {
     btn.addEventListener("click", () => {
