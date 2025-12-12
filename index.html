@@ -82,132 +82,251 @@
     </section>
 
     <!-- TRANSACTIONS -->
-    <section class="card tabPage hidden" id="tab-transactions">
+<section class="card tabPage hidden" id="tab-transactions">
+  <div class="row space">
+    <h2>Gelir–Gider</h2>
+    <div class="row">
+      <label class="muted small">Ay:
+        <input id="activeMonth" type="month" />
+      </label>
+    </div>
+  </div>
+
+  <nav class="subtabs">
+    <button type="button" class="subtab active" data-subtab="income">Gelir</button>
+    <button type="button" class="subtab" data-subtab="expense">Gider</button>
+    <button type="button" class="subtab" data-subtab="net">Net</button>
+  </nav>
+
+  <!-- INCOME -->
+  <section class="subPage" id="sub-income">
+    <h3>Sürekli Gelir Ekle</h3>
+    <form id="riForm" class="form">
+      <label>
+        Gelir adı
+        <input id="riName" type="text" placeholder="Harçlık, Burs, Freelance..." required />
+      </label>
+      <label>
+        Varsayılan miktar (₺)
+        <input id="riAmount" type="number" inputmode="decimal" min="0" step="0.01" required />
+      </label>
+      <label>
+        Beklenen gün (1-31)
+        <input id="riDay" type="number" inputmode="numeric" min="1" max="31" value="5" required />
+      </label>
+      <label class="row">
+        <input id="riActive" type="checkbox" checked />
+        <span>Aktif (her ay tekrarlasın)</span>
+      </label>
+      <button type="submit">Ekle</button>
+    </form>
+
+    <hr />
+
+    <h3>Sürekli Gelir Listesi</h3>
+    <div class="tableWrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Ad</th>
+            <th class="right">Varsayılan</th>
+            <th class="right">Gün</th>
+            <th>Aktif</th>
+            <th>Bu ay</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="riBody"></tbody>
+      </table>
+    </div>
+
+    <hr />
+
+    <h3>Ekstra Gelir Ekle</h3>
+    <form id="eiForm" class="form">
+      <label>
+        Tarih
+        <input id="eiDate" type="date" required />
+      </label>
+      <label>
+        Miktar (₺)
+        <input id="eiAmount" type="number" inputmode="decimal" min="0" step="0.01" required />
+      </label>
+      <label>
+        Not
+        <input id="eiNote" type="text" maxlength="120" placeholder="örn: freelance, hediye, iade..." />
+      </label>
+      <button type="submit">Ekle</button>
+    </form>
+
+    <h3>Ekstra Gelirler (Bu Ay)</h3>
+    <div class="tableWrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Tarih</th>
+            <th class="right">Miktar</th>
+            <th>Not</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="eiBody"></tbody>
+      </table>
+    </div>
+
+    <hr />
+
+    <div class="row space">
+      <h3>Takvim (Gelir Durumu)</h3>
+      <div class="muted small">🟢 geldi • ⚪ bekleniyor • 🔴 gelmedi</div>
+    </div>
+
+    <div class="calGrid" id="incomeCal"></div>
+
+    <div class="card miniCard">
       <div class="row space">
-        <h2>Gelir–Gider</h2>
-        <div class="row">
-          <label class="muted small">Ay:
-            <input id="activeMonth" type="month" />
-          </label>
-        </div>
+        <h3 style="margin:0;">Seçili Gün Detayı</h3>
+        <div class="muted small" id="selectedDayLabel">—</div>
       </div>
+      <div id="dayDetails" class="muted small" style="margin-top:10px;">Takvimden bir gün seç.</div>
+    </div>
+  </section>
 
-      <nav class="subtabs">
-        <button type="button" class="subtab active" data-subtab="income">Gelir</button>
-        <button type="button" class="subtab" data-subtab="expense" disabled>Gider (yakında)</button>
-        <button type="button" class="subtab" data-subtab="net" disabled>Net (yakında)</button>
-      </nav>
+  <!-- EXPENSE -->
+  <section class="subPage hidden" id="sub-expense">
+    <h3>Standart Gider Bütçesi Ekle</h3>
+    <form id="bmForm" class="form">
+      <label>
+        Kategori
+        <input id="bmName" type="text" placeholder="Beslenme, Kira, Fatura..." required />
+      </label>
+      <label>
+        Aylık bütçe (₺)
+        <input id="bmBudget" type="number" inputmode="decimal" min="0" step="0.01" required />
+      </label>
+      <label class="row">
+        <input id="bmActive" type="checkbox" checked />
+        <span>Aktif</span>
+      </label>
+      <button type="submit">Ekle</button>
+    </form>
 
-      <!-- INCOME -->
-      <section class="subPage" id="sub-income">
-        <h3>Sürekli Gelir Ekle</h3>
-        <form id="riForm" class="form">
-          <label>
-            Gelir adı
-            <input id="riName" type="text" placeholder="Harçlık, Burs, Freelance..." required />
-          </label>
-          <label>
-            Varsayılan miktar (₺)
-            <input id="riAmount" type="number" inputmode="decimal" min="0" step="0.01" required />
-          </label>
-          <label>
-            Beklenen gün (1-31)
-            <input id="riDay" type="number" inputmode="numeric" min="1" max="31" value="5" required />
-          </label>
-          <label class="row">
-            <input id="riActive" type="checkbox" checked />
-            <span>Aktif (her ay tekrarlasın)</span>
-          </label>
-          <button type="submit">Ekle</button>
-        </form>
-        
-        <hr />
+    <hr />
 
-<h3>Ekstra Gelir Ekle</h3>
-<form id="eiForm" class="form">
-  <label>
-    Tarih
-    <input id="eiDate" type="date" required />
-  </label>
+    <h3>Standart Giderler (Bütçe / Harcanan / Kalan)</h3>
+    <div class="tableWrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Kategori</th>
+            <th class="right">Bütçe</th>
+            <th class="right">Harcanan</th>
+            <th class="right">Kalan</th>
+            <th>Aktif</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="bmBody"></tbody>
+      </table>
+    </div>
 
-  <label>
-    Miktar (₺)
-    <input id="eiAmount" type="number" inputmode="decimal" min="0" step="0.01" required />
-  </label>
+    <hr />
 
-  <label>
-    Not
-    <input id="eiNote" type="text" maxlength="120" placeholder="örn: freelance, hediye, iade..." />
-  </label>
+    <h3>Standart Gider Harcaması Ekle</h3>
+    <form id="beForm" class="form">
+      <label>
+        Kategori
+        <select id="beBudgetId" required></select>
+      </label>
+      <label>
+        Tarih
+        <input id="beDate" type="date" required />
+      </label>
+      <label>
+        Miktar (₺)
+        <input id="beAmount" type="number" inputmode="decimal" min="0" step="0.01" required />
+      </label>
+      <label>
+        Not
+        <input id="beNote" type="text" maxlength="120" placeholder="örn: protein, market, kira..." />
+      </label>
+      <button type="submit">Ekle</button>
+    </form>
 
-  <button type="submit">Ekle</button>
-</form>
+    <h3>Standart Gider Harcamaları (Bu Ay)</h3>
+    <div class="tableWrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Tarih</th>
+            <th>Kategori</th>
+            <th class="right">Miktar</th>
+            <th>Not</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="beBody"></tbody>
+      </table>
+    </div>
 
-<h3>Ekstra Gelirler (Bu Ay)</h3>
-<div class="tableWrap">
-  <table>
-    <thead>
-      <tr>
-        <th>Tarih</th>
-        <th class="right">Miktar</th>
-        <th>Not</th>
-        <th></th>
-      </tr>
-    </thead>
-    <tbody id="eiBody"></tbody>
-  </table>
-</div>
+    <hr />
 
-        <hr />
+    <h3>Beklenmedik Gider Ekle</h3>
+    <form id="ueForm" class="form">
+      <label>
+        Tarih
+        <input id="ueDate" type="date" required />
+      </label>
+      <label>
+        Miktar (₺)
+        <input id="ueAmount" type="number" inputmode="decimal" min="0" step="0.01" required />
+      </label>
+      <label>
+        Not
+        <input id="ueNote" type="text" maxlength="120" placeholder="örn: dişçi, tamir, telefon..." />
+      </label>
+      <button type="submit">Ekle</button>
+    </form>
 
-        <h3>Sürekli Gelir Listesi</h3>
-        <div class="tableWrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Ad</th>
-                <th class="right">Varsayılan</th>
-                <th class="right">Gün</th>
-                <th>Aktif</th>
-                <th>Bu ay</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody id="riBody"></tbody>
-          </table>
-        </div>
+    <h3>Beklenmedik Giderler (Bu Ay)</h3>
+    <div class="tableWrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Tarih</th>
+            <th class="right">Miktar</th>
+            <th>Not</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="ueBody"></tbody>
+      </table>
+    </div>
+  </section>
 
-        <hr />
+  <!-- NET -->
+  <section class="subPage hidden" id="sub-net">
+    <h3>Net Durum (Bu Ay)</h3>
+    <div class="summary">
+      <div class="pill">
+        <div class="muted">Toplam Gelir</div>
+        <div id="netIncome" class="big">₺0</div>
+      </div>
+      <div class="pill">
+        <div class="muted">Toplam Gider</div>
+        <div id="netExpense" class="big">₺0</div>
+      </div>
+      <div class="pill">
+        <div class="muted">Kalan Para</div>
+        <div id="netLeft" class="big">₺0</div>
+      </div>
+    </div>
 
-        <div class="row space">
-          <h3>Takvim (Gelir Durumu)</h3>
-          <div class="muted small">
-            🟢 geldi • ⚪ bekleniyor • 🔴 gelmedi
-          </div>
-        </div>
+    <hr />
 
-        <div class="calGrid" id="incomeCal"></div>
-
-        <div class="card miniCard">
-          <div class="row space">
-            <h3 style="margin:0;">Seçili Gün Detayı</h3>
-            <div class="muted small" id="selectedDayLabel">—</div>
-          </div>
-          <div id="dayDetails" class="muted small" style="margin-top:10px;">
-            Takvimden bir gün seç.
-          </div>
-        </div>
-      </section>
-
-      <!-- placeholders -->
-      <section class="subPage hidden" id="sub-expense">
-        <p class="muted">Gider kısmını bir sonraki adımda kuracağız.</p>
-      </section>
-
-      <section class="subPage hidden" id="sub-net">
-        <p class="muted">Net paneli bir sonraki adımda gelecek.</p>
-      </section>
-    </section>
+    <div class="muted" id="netInsight">—</div>
+  </section>
+</section>
 
     <!-- INVENTORY -->
     <section class="card tabPage hidden" id="tab-inventory">
