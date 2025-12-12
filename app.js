@@ -1,31 +1,17 @@
-// ====== Accounter v0.2 (LocalStorage) ======
+// ====== Accounter v0.3 (LocalStorage) ======
 
-const STORAGE_KEY = "tx.v1";
 const SUMMARY_KEY = "summary.v1";
+const NETWORTH_KEY = "networth.history.v1";
+
+const RI_MASTER_KEY = "ri.master.v1";     // recurring income master list
+const RI_MONTH_KEY  = "ri.month.v1";      // monthly instances (per month)
+
 const INVENTORY_KEY = "inventory.v1";
 
-const DEFAULT_CATEGORIES = {
-  income: ["Maaş", "Burs", "Harçlık", "Freelance", "Yatırım Geliri", "Diğer"],
-  expense: ["Kira", "Fatura", "Market", "Ulaşım", "Sağlık", "Eğlence", "Eğitim", "Diğer"]
-};
-
 const els = {
-  // transactions
-  form: document.getElementById("txForm"),
-  type: document.getElementById("type"),
-  amount: document.getElementById("amount"),
-  category: document.getElementById("category"),
-  date: document.getElementById("date"),
-  note: document.getElementById("note"),
-  month: document.getElementById("month"),
-  filterCategory: document.getElementById("filterCategory"),
-  q: document.getElementById("q"),
-  clearFilters: document.getElementById("clearFilters"),
-  tbody: document.getElementById("tbody"),
-  countInfo: document.getElementById("countInfo"),
-  exportBtn: document.getElementById("exportBtn"),
-  seedBtn: document.getElementById("seedBtn"),
-  resetBtn: document.getElementById("resetBtn"),
+  // top tabs
+  tabs: () => document.querySelectorAll(".tab"),
+  pages: () => document.querySelectorAll(".tabPage"),
 
   // dashboard
   cashNow: document.getElementById("cashNow"),
@@ -37,6 +23,24 @@ const els = {
   cashInput: document.getElementById("cashInput"),
   invInput: document.getElementById("invInput"),
   saveSummary: document.getElementById("saveSummary"),
+  netWorthChart: document.getElementById("netWorthChart"),
+
+  // transactions
+  activeMonth: document.getElementById("activeMonth"),
+  subtabs: () => document.querySelectorAll(".subtab"),
+  subpages: () => document.querySelectorAll(".subPage"),
+
+  // income recurring form
+  riForm: document.getElementById("riForm"),
+  riName: document.getElementById("riName"),
+  riAmount: document.getElementById("riAmount"),
+  riDay: document.getElementById("riDay"),
+  riActive: document.getElementById("riActive"),
+  riBody: document.getElementById("riBody"),
+
+  incomeCal: document.getElementById("incomeCal"),
+  selectedDayLabel: document.getElementById("selectedDayLabel"),
+  dayDetails: document.getElementById("dayDetails"),
 
   // inventory
   invForm: document.getElementById("invForm"),
@@ -47,18 +51,8 @@ const els = {
   invBody: document.getElementById("invBody"),
 };
 
-function todayISO() {
-  const d = new Date();
-  const yyyy = d.getFullYear();
-  const mm = String(d.getMonth()+1).padStart(2,"0");
-  const dd = String(d.getDate()).padStart(2,"0");
-  return `${yyyy}-${mm}-${dd}`;
-}
-
-function monthKey(d = new Date()) {
-  const yyyy = d.getFullYear();
-  const mm = String(d.getMonth()+1).padStart(2,"0");
-  return `${yyyy}-${mm}`;
+function uid() {
+  return crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random().toString(16).slice(2);
 }
 
 function formatTRY(n) {
@@ -75,152 +69,405 @@ function escapeHtml(str) {
     .replaceAll("'", "&#039;");
 }
 
-function uid() {
-  return crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random().toString(16).slice(2);
+function todayISO() {
+  const d = new Date();
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth()+1).padStart(2,"0");
+  const dd = String(d.getDate()).padStart(2,"0");
+  return `${yyyy}-${mm}-${dd}`;
 }
 
-// ====== Transactions storage ======
-function loadTx() {
+function monthKey(d = new Date()) {
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth()+1).padStart(2,"0");
+  return `${yyyy}-${mm}`;
+}
+
+function daysInMonth(yyyy, mm1to12) {
+  return new Date(yyyy, mm1to12, 0).getDate();
+}
+
+// ====== Storage helpers ======
+function loadJSON(key, fallback) {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return [];
-    const data = JSON.parse(raw);
-    return Array.isArray(data) ? data : [];
-  } catch {
-    return [];
+    const raw = localStorage.getItem(key);
+    if (!raw) return fallback;
+    const v = JSON.parse(raw);
+    return v ?? fallback;
+  } catch { return fallback; }
+}
+function saveJSON(key, value) {
+  localStorage.setItem(key, JSON.stringify(value));
+}
+
+// ====== Dashboard data ======
+function loadSummary() {
+  return loadJSON(SUMMARY_KEY, { cashNow: 0, invNow: 0 });
+}
+function saveSummary(s) {
+  saveJSON(SUMMARY_KEY, s);
+}
+
+function loadNetWorthHistory() {
+  return loadJSON(NETWORTH_KEY, []); // [{month:"YYYY-MM", cashNow, invNow, netWorth}]
+}
+function upsertNetWorthHistory(month, cashNow, invNow) {
+  const list = loadNetWorthHistory();
+  const netWorth = (Number(cashNow)||0) + (Number(invNow)||0);
+  const idx = list.findIndex(x => x.month === month);
+  const item = { month, cashNow, invNow, netWorth };
+  if (idx >= 0) list[idx] = item;
+  else list.push(item);
+  list.sort((a,b)=>a.month.localeCompare(b.month));
+  saveJSON(NETWORTH_KEY, list);
+}
+
+function computeMonthlyIncomeFor(month) {
+  // sadece sürekli gelir instance'ları (şimdilik)
+  const inst = loadRIMonth();
+  const items = inst.filter(x => x.month === month && x.type === "income" && x.skipped !== true);
+  let total = 0;
+  for (const it of items) {
+    if (it.status === "received") total += Number(it.amount || 0);
+    // pending/missed dahil etmek istersen: burada toplama kuralını değiştirebilirsin
   }
-}
-function saveTx(list) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+  return total;
 }
 
-let tx = loadTx();
-
-function setCategoryOptions() {
-  const t = els.type.value;
-  const cats = DEFAULT_CATEGORIES[t];
-
-  els.category.innerHTML = cats.map(c => `<option value="${c}">${c}</option>`).join("");
-
-  const allCats = Array.from(new Set([...DEFAULT_CATEGORIES.income, ...DEFAULT_CATEGORIES.expense]))
-    .sort((a,b)=>a.localeCompare(b,"tr"));
-
-  els.filterCategory.innerHTML = [
-    `<option value="all">Hepsi</option>`,
-    ...allCats.map(c => `<option value="${c}">${c}</option>`)
-  ].join("");
+// ====== Recurring Income (Master + Monthly Instances) ======
+// Master: [{id,name,defaultAmount,day,active}]
+function loadRIMaster() {
+  return loadJSON(RI_MASTER_KEY, []);
+}
+function saveRIMaster(list) {
+  saveJSON(RI_MASTER_KEY, list);
 }
 
-function applyFilters(list) {
-  let out = [...list];
-
-  const m = els.month.value?.trim();
-  if (m) out = out.filter(x => x.date.startsWith(m));
-
-  const fc = els.filterCategory.value;
-  if (fc && fc !== "all") out = out.filter(x => x.category === fc);
-
-  const q = els.q.value.trim().toLowerCase();
-  if (q) out = out.filter(x => (x.note || "").toLowerCase().includes(q));
-
-  out.sort((a,b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0));
-  return out;
+// Month instances: [{id,masterId,month,name,amount,day,status,skipped,type:"income"}]
+function loadRIMonth() {
+  return loadJSON(RI_MONTH_KEY, []);
+}
+function saveRIMonth(list) {
+  saveJSON(RI_MONTH_KEY, list);
 }
 
-function addTx({ type, amount, category, date, note }) {
-  const item = {
-    id: uid(),
-    type,
-    amount: Number(amount),
-    category,
-    date,
-    note: note?.trim() || "",
-    createdAt: Date.now()
-  };
-  tx.push(item);
-  saveTx(tx);
-}
+function ensureMonthInstances(month) {
+  const master = loadRIMaster();
+  let inst = loadRIMonth();
 
-function computeMonthly(list, yyyyMM) {
-  let income = 0, expense = 0;
-  for (const x of list) {
-    if (!x.date?.startsWith(yyyyMM)) continue;
-    const amt = Number(x.amount) || 0;
-    if (x.type === "income") income += amt;
-    else expense += amt;
+  // her master için o ay instance yoksa üret
+  for (const m of master) {
+    if (!m.active) continue;
+    const exists = inst.some(x => x.month === month && x.masterId === m.id);
+    if (!exists) {
+      inst.push({
+        id: uid(),
+        masterId: m.id,
+        month,
+        name: m.name,
+        amount: Number(m.defaultAmount),
+        day: Number(m.day),
+        status: "pending", // pending | received | missed
+        skipped: false,
+        type: "income"
+      });
+    }
   }
-  return { income, expense, net: income - expense };
+
+  saveRIMonth(inst);
 }
 
-function renderTransactions() {
-  const filtered = applyFilters(tx);
-  els.countInfo.textContent = `${filtered.length} kayıt`;
+function getMonthInstance(masterId, month) {
+  const inst = loadRIMonth();
+  return inst.find(x => x.masterId === masterId && x.month === month) || null;
+}
 
-  els.tbody.innerHTML = filtered.map(x => {
-    const sign = x.type === "income" ? "+" : "-";
+function setMonthInstancePatch(masterId, month, patch) {
+  let inst = loadRIMonth();
+  const idx = inst.findIndex(x => x.masterId === masterId && x.month === month);
+  if (idx >= 0) inst[idx] = { ...inst[idx], ...patch };
+  else {
+    // yoksa oluştur (master aktif olmasa bile ay bazında eklenebilir)
+    const master = loadRIMaster().find(m => m.id === masterId);
+    if (!master) return;
+    inst.push({
+      id: uid(),
+      masterId,
+      month,
+      name: master.name,
+      amount: Number(master.defaultAmount),
+      day: Number(master.day),
+      status: "pending",
+      skipped: false,
+      type: "income",
+      ...patch
+    });
+  }
+  saveRIMonth(inst);
+}
+
+// status auto: tarih geçtiyse ve received değilse -> missed (ama kullanıcı manuel değiştirebilir)
+function autoStatusFor(instance, month) {
+  if (!instance || instance.skipped) return instance?.status || "pending";
+  if (instance.status === "received") return "received";
+
+  const [yyyy, mm] = month.split("-").map(Number);
+  const dueDate = new Date(yyyy, mm - 1, Number(instance.day));
+  const now = new Date();
+  // sadece aynı ay için "geçti" kontrolü
+  if (monthKey(now) === month && now > dueDate) return "missed";
+  return "pending";
+}
+
+// ====== Tabs ======
+function initTabs() {
+  els.tabs().forEach(btn => {
+    btn.addEventListener("click", (e) => {
+      e.preventDefault();
+      els.tabs().forEach(b => b.classList.remove("active"));
+      btn.classList.add("active");
+      const tab = btn.getAttribute("data-tab");
+      els.pages().forEach(sec => sec.classList.add("hidden"));
+      const target = document.getElementById(`tab-${tab}`);
+      if (target) target.classList.remove("hidden");
+    });
+  });
+}
+
+function initSubTabs() {
+  els.subtabs().forEach(btn => {
+    btn.addEventListener("click", (e) => {
+      e.preventDefault();
+      els.subtabs().forEach(b => b.classList.remove("active"));
+      btn.classList.add("active");
+      const sub = btn.getAttribute("data-subtab");
+      els.subpages().forEach(sec => sec.classList.add("hidden"));
+      const target = document.getElementById(`sub-${sub}`);
+      if (target) target.classList.remove("hidden");
+    });
+  });
+}
+
+// ====== Income UI render ======
+let selectedDay = null; // "YYYY-MM-DD"
+
+function renderRIMasterTable() {
+  const month = els.activeMonth.value || monthKey(new Date());
+  ensureMonthInstances(month);
+
+  const master = loadRIMaster();
+  const inst = loadRIMonth();
+
+  master.sort((a,b)=>a.name.localeCompare(b.name,"tr"));
+
+  els.riBody.innerHTML = master.map(m => {
+    const mi = inst.find(x => x.month === month && x.masterId === m.id) || null;
+    const effectiveAmount = mi ? mi.amount : m.defaultAmount;
+    const skipped = mi ? mi.skipped : false;
+    const st = mi ? autoStatusFor(mi, month) : "pending";
+
+    const statusEmoji = skipped ? "⏸️" : (st === "received" ? "🟢" : (st === "missed" ? "🔴" : "⚪"));
+
     return `
       <tr>
-        <td>${x.date}</td>
-        <td>${x.type === "income" ? "Gelir" : "Gider"}</td>
-        <td>${x.category}</td>
-        <td class="right">${sign} ${formatTRY(x.amount)}</td>
-        <td>${escapeHtml(x.note || "")}</td>
-        <td class="right">
-          <button class="secondary" data-del="${x.id}">Sil</button>
+        <td>${escapeHtml(m.name)}</td>
+        <td class="right">${formatTRY(m.defaultAmount)}</td>
+        <td class="right">${Number(m.day)}</td>
+        <td>${m.active ? "✅" : "—"}</td>
+        <td>
+          <div class="row" style="gap:8px;">
+            <span>${statusEmoji}</span>
+            <input data-ovr="${m.id}" type="number" inputmode="decimal" min="0" step="0.01"
+                   value="${Number(effectiveAmount)}" style="width:120px;" />
+            <button type="button" class="secondary" data-toggle="${m.id}">${m.active ? "Pasif" : "Aktif"}</button>
+            <button type="button" class="secondary" data-pause="${m.id}">${skipped ? "Bu ay aç" : "Bu ay kapat"}</button>
+            <button type="button" class="danger" data-del="${m.id}">Sil</button>
+          </div>
+          <div class="muted small">Bu ay miktarını değiştirip dışarı tıklayınca kaydeder.</div>
         </td>
+        <td></td>
       </tr>
     `;
   }).join("");
 
-  els.tbody.querySelectorAll("button[data-del]").forEach(btn => {
+  // toggle active
+  els.riBody.querySelectorAll("button[data-toggle]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const id = btn.getAttribute("data-toggle");
+      let master = loadRIMaster();
+      master = master.map(x => x.id === id ? { ...x, active: !x.active } : x);
+      saveRIMaster(master);
+      // aktif açıldıysa instance üret
+      ensureMonthInstances(month);
+      renderAll();
+    });
+  });
+
+  // pause this month
+  els.riBody.querySelectorAll("button[data-pause]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const id = btn.getAttribute("data-pause");
+      const mi = getMonthInstance(id, month);
+      const next = !(mi?.skipped === true);
+      setMonthInstancePatch(id, month, { skipped: next });
+      renderAll();
+    });
+  });
+
+  // delete master (ve tüm ay instance'larını da sil)
+  els.riBody.querySelectorAll("button[data-del]").forEach(btn => {
     btn.addEventListener("click", () => {
       const id = btn.getAttribute("data-del");
-      tx = tx.filter(x => x.id !== id);
-      saveTx(tx);
+      const ok = confirm("Bu sürekli geliri tamamen silmek istiyor musun?");
+      if (!ok) return;
+      let master = loadRIMaster().filter(x => x.id !== id);
+      saveRIMaster(master);
+      let inst = loadRIMonth().filter(x => x.masterId !== id);
+      saveRIMonth(inst);
+      renderAll();
+    });
+  });
+
+  // month amount override
+  els.riBody.querySelectorAll("input[data-ovr]").forEach(inp => {
+    inp.addEventListener("change", () => {
+      const id = inp.getAttribute("data-ovr");
+      const val = Number(inp.value || 0);
+      setMonthInstancePatch(id, month, { amount: val });
       renderAll();
     });
   });
 }
 
-function toCSV(list) {
-  const header = ["date","type","category","amount","note"];
-  const lines = [header.join(",")];
+function renderIncomeCalendar() {
+  const month = els.activeMonth.value || monthKey(new Date());
+  ensureMonthInstances(month);
 
-  for (const x of list) {
-    const row = [
-      x.date,
-      x.type,
-      x.category,
-      String(Number(x.amount || 0)),
-      `"${String(x.note||"").replaceAll('"','""')}"`
-    ];
-    lines.push(row.join(","));
+  const [yyyy, mm] = month.split("-").map(Number);
+  const dim = daysInMonth(yyyy, mm);
+  const firstDow = new Date(yyyy, mm - 1, 1).getDay(); // 0 Sun ... 6 Sat
+  const offset = (firstDow + 6) % 7; // Pazartesi başlangıç için shift
+
+  const inst = loadRIMonth().filter(x => x.month === month && x.type === "income" && !x.skipped);
+
+  // map day -> list of incomes due
+  const dueByDay = new Map();
+  for (const it of inst) {
+    const d = Number(it.day);
+    if (!dueByDay.has(d)) dueByDay.set(d, []);
+    dueByDay.get(d).push(it);
   }
-  return lines.join("\n");
-}
 
-function download(filename, text) {
-  const blob = new Blob([text], { type: "text/csv;charset=utf-8" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  a.click();
-  URL.revokeObjectURL(url);
-}
+  // build cells with empty leading
+  const cells = [];
+  for (let i=0;i<offset;i++) cells.push({ empty:true });
 
-// ====== Dashboard storage ======
-function loadSummary() {
-  try {
-    return JSON.parse(localStorage.getItem(SUMMARY_KEY)) || { cashNow: 0, invNow: 0 };
-  } catch {
-    return { cashNow: 0, invNow: 0 };
+  for (let d=1; d<=dim; d++) {
+    const list = dueByDay.get(d) || [];
+    let state = "pending";
+    if (list.length === 0) state = "pending";
+    else {
+      // severity: missed > pending > received
+      let hasMissed = false, hasPending = false, allReceived = true;
+      for (const it of list) {
+        const st = autoStatusFor(it, month);
+        if (st === "missed") hasMissed = true;
+        if (st === "pending") hasPending = true;
+        if (st !== "received") allReceived = false;
+      }
+      if (hasMissed) state = "bad";
+      else if (hasPending) state = "pending";
+      else if (allReceived) state = "ok";
+    }
+
+    const badge = list.length === 0 ? "" : (
+      state === "ok" ? "🟢" : (state === "bad" ? "🔴" : "⚪")
+    );
+
+    cells.push({ empty:false, day:d, state, badge, count:list.length });
   }
-}
-function saveSummary(s) {
-  localStorage.setItem(SUMMARY_KEY, JSON.stringify(s));
+
+  els.incomeCal.innerHTML = cells.map(c => {
+    if (c.empty) return `<div class="calCell" style="opacity:.25; cursor:default;"></div>`;
+    return `
+      <div class="calCell ${c.state}" data-day="${c.day}">
+        <div class="dayNum">${c.day}</div>
+        <div class="badge">${c.badge} ${c.count ? `${c.count} gelir` : ""}</div>
+      </div>
+    `;
+  }).join("");
+
+  // click day
+  els.incomeCal.querySelectorAll(".calCell[data-day]").forEach(cell => {
+    cell.addEventListener("click", () => {
+      const d = Number(cell.getAttribute("data-day"));
+      const dd = String(d).padStart(2, "0");
+      selectedDay = `${month}-${dd}`;
+      renderSelectedDayDetails();
+    });
+  });
+
+  // default select today if same month
+  const t = todayISO();
+  if (!selectedDay || !selectedDay.startsWith(month)) {
+    if (t.startsWith(month)) selectedDay = t;
+    else selectedDay = `${month}-01`;
+  }
+  renderSelectedDayDetails();
 }
 
+function renderSelectedDayDetails() {
+  const month = els.activeMonth.value || monthKey(new Date());
+  const inst = loadRIMonth().filter(x => x.month === month && x.type === "income" && !x.skipped);
+
+  if (!selectedDay) {
+    els.selectedDayLabel.textContent = "—";
+    els.dayDetails.textContent = "Takvimden bir gün seç.";
+    return;
+  }
+
+  els.selectedDayLabel.textContent = selectedDay;
+
+  const day = Number(selectedDay.slice(-2));
+  const due = inst.filter(x => Number(x.day) === day);
+
+  if (due.length === 0) {
+    els.dayDetails.innerHTML = `<div class="muted">Bu güne tanımlı sürekli gelir yok.</div>`;
+    return;
+  }
+
+  const rows = due.map(it => {
+    const st = autoStatusFor(it, month);
+    const color = st === "received" ? "🟢" : (st === "missed" ? "🔴" : "⚪");
+    return `
+      <div class="row" style="justify-content:space-between; margin:8px 0;">
+        <div>
+          <div><strong>${escapeHtml(it.name)}</strong> — ${formatTRY(it.amount)}</div>
+          <div class="muted small">Durum: ${color} ${st}</div>
+        </div>
+        <div class="row">
+          <button type="button" class="secondary" data-setst="${it.masterId}" data-st="pending">Bekliyor</button>
+          <button type="button" class="secondary" data-setst="${it.masterId}" data-st="received">Geldi</button>
+          <button type="button" class="secondary" data-setst="${it.masterId}" data-st="missed">Gelmedi</button>
+        </div>
+      </div>
+      <hr />
+    `;
+  }).join("");
+
+  els.dayDetails.innerHTML = rows;
+
+  els.dayDetails.querySelectorAll("button[data-setst]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const masterId = btn.getAttribute("data-setst");
+      const st = btn.getAttribute("data-st");
+      setMonthInstancePatch(masterId, month, { status: st });
+      renderAll();
+    });
+  });
+}
+
+// ====== Dashboard render + chart ======
 function renderDashboard() {
   const s = loadSummary();
 
@@ -228,27 +475,93 @@ function renderDashboard() {
   els.invNow.textContent = formatTRY(s.invNow);
   els.netWorth.textContent = formatTRY((Number(s.cashNow)||0) + (Number(s.invNow)||0));
 
+  // Bu ay sürekli gelir (received toplamı)
   const mk = monthKey(new Date());
-  const m = computeMonthly(tx, mk);
-  els.mIncome.textContent = formatTRY(m.income);
-  els.mExpense.textContent = formatTRY(m.expense);
-  els.mNet.textContent = formatTRY(m.net);
+  const income = computeMonthlyIncomeFor(mk);
+  const expense = 0; // gider sonraki adım
+  els.mIncome.textContent = formatTRY(income);
+  els.mExpense.textContent = formatTRY(expense);
+  els.mNet.textContent = formatTRY(income - expense);
 
   els.cashInput.value = s.cashNow ?? 0;
   els.invInput.value = s.invNow ?? 0;
+
+  drawNetWorthChart();
 }
 
-// ====== Inventory storage ======
-function loadInventory() {
-  try { return JSON.parse(localStorage.getItem(INVENTORY_KEY)) || []; }
-  catch { return []; }
+function drawNetWorthChart() {
+  const canvas = els.netWorthChart;
+  if (!canvas) return;
+  const ctx = canvas.getContext("2d");
+  const w = canvas.width = canvas.clientWidth;
+  const h = canvas.height = canvas.height; // keep height
+
+  ctx.clearRect(0,0,w,h);
+
+  const data = loadNetWorthHistory();
+  if (data.length < 2) {
+    ctx.fillStyle = "rgba(255,255,255,.6)";
+    ctx.font = "12px system-ui";
+    ctx.fillText("Grafik için en az 2 farklı ayda Kaydet yap.", 10, 20);
+    return;
+  }
+
+  const values = data.map(x => Number(x.netWorth||0));
+  const minV = Math.min(...values);
+  const maxV = Math.max(...values);
+  const pad = 16;
+  const left = pad, right = w - pad, top = pad, bottom = h - pad;
+
+  const span = (maxV - minV) || 1;
+  const n = data.length;
+
+  function xPos(i){ return left + (i*(right-left))/(n-1); }
+  function yPos(v){ return bottom - ((v - minV) * (bottom-top))/span; }
+
+  // axes faint
+  ctx.strokeStyle = "rgba(255,255,255,.10)";
+  ctx.beginPath();
+  ctx.moveTo(left, top);
+  ctx.lineTo(left, bottom);
+  ctx.lineTo(right, bottom);
+  ctx.stroke();
+
+  // line
+  ctx.strokeStyle = "rgba(110,168,254,.85)";
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  data.forEach((p,i)=>{
+    const x = xPos(i);
+    const y = yPos(Number(p.netWorth||0));
+    if (i===0) ctx.moveTo(x,y);
+    else ctx.lineTo(x,y);
+  });
+  ctx.stroke();
+
+  // points
+  ctx.fillStyle = "rgba(110,168,254,.95)";
+  data.forEach((p,i)=>{
+    const x = xPos(i);
+    const y = yPos(Number(p.netWorth||0));
+    ctx.beginPath();
+    ctx.arc(x,y,3,0,Math.PI*2);
+    ctx.fill();
+  });
+
+  // labels (first/last)
+  ctx.fillStyle = "rgba(255,255,255,.65)";
+  ctx.font = "11px system-ui";
+  ctx.fillText(data[0].month, left, top + 10);
+  ctx.fillText(data[n-1].month, right - 54, top + 10);
 }
-function saveInventory(list) {
-  localStorage.setItem(INVENTORY_KEY, JSON.stringify(list));
-}
+
+// ====== Inventory (aynı) ======
+function loadInventory() { return loadJSON(INVENTORY_KEY, []); }
+function saveInventory(list) { saveJSON(INVENTORY_KEY, list); }
 let inventory = loadInventory();
 
 function renderInventory() {
+  if (!els.invBody) return;
   inventory.sort((a,b)=>a.name.localeCompare(b.name,"tr"));
 
   els.invBody.innerHTML = inventory.map(it => {
@@ -275,119 +588,70 @@ function renderInventory() {
   });
 }
 
-// ====== Tabs ======
-function initTabs() {
-  document.querySelectorAll(".tab").forEach(btn => {
-    btn.addEventListener("click", () => {
-      document.querySelectorAll(".tab").forEach(b => b.classList.remove("active"));
-      btn.classList.add("active");
-
-      const tab = btn.getAttribute("data-tab");
-      document.querySelectorAll(".tabPage").forEach(sec => sec.classList.add("hidden"));
-      document.getElementById(`tab-${tab}`).classList.remove("hidden");
-    });
-  });
-}
-
-// ====== Render all ======
+// ====== Render All ======
 function renderAll() {
   renderDashboard();
-  renderTransactions();
+  renderRIMasterTable();
+  renderIncomeCalendar();
   renderInventory();
 }
 
-// ====== Wire events ======
+// ====== Init ======
 function init() {
-  // Güvenlik: eksik element varsa çökme
-if (!els.form || !els.tbody) {
-  console.warn("Gelir-Gider bölümü henüz tam değil");
-}
-  // defaults
-  if (els.date) els.date.value = todayISO();
-  setCategoryOptions();
   initTabs();
+  initSubTabs();
 
-  // tx form
-  els.type.addEventListener("change", setCategoryOptions);
+  // month default
+  if (els.activeMonth) els.activeMonth.value = monthKey(new Date());
+  els.activeMonth?.addEventListener("input", () => {
+    // ay değişince seçili günü o aya taşı
+    selectedDay = null;
+    renderAll();
+  });
 
-  els.form.addEventListener("submit", (e) => {
+  // recurring income add
+  els.riForm?.addEventListener("submit", (e) => {
     e.preventDefault();
+    const name = els.riName.value.trim();
+    const amount = Number(els.riAmount.value || 0);
+    const day = Number(els.riDay.value || 1);
+    const active = !!els.riActive.checked;
 
-    const type = els.type.value;
-    const amount = els.amount.value;
-    const category = els.category.value;
-    const date = els.date.value;
-    const note = els.note.value;
+    if (!name) return alert("Gelir adı yaz.");
+    if (amount <= 0) return alert("Miktar 0'dan büyük olmalı.");
+    if (day < 1 || day > 31) return alert("Gün 1-31 olmalı.");
 
-    if (!amount || Number(amount) <= 0) {
-      alert("Tutar 0'dan büyük olmalı.");
-      return;
-    }
-    if (!date) {
-      alert("Tarih gerekli.");
-      return;
-    }
+    const master = loadRIMaster();
+    master.push({
+      id: uid(),
+      name,
+      defaultAmount: amount,
+      day,
+      active
+    });
+    saveRIMaster(master);
 
-    addTx({ type, amount, category, date, note });
-
-    els.amount.value = "";
-    els.note.value = "";
-    els.amount.focus();
+    // clear
+    els.riName.value = "";
+    els.riAmount.value = "";
+    els.riDay.value = "5";
+    els.riActive.checked = true;
 
     renderAll();
   });
 
-  [els.month, els.filterCategory, els.q].forEach(el => {
-    el.addEventListener("input", renderTransactions);
-  });
-
-  els.clearFilters.addEventListener("click", () => {
-    els.month.value = "";
-    els.filterCategory.value = "all";
-    els.q.value = "";
-    renderTransactions();
-  });
-
-  els.exportBtn.addEventListener("click", () => {
-    const filtered = applyFilters(tx);
-    const csv = toCSV(filtered);
-    const stamp = new Date().toISOString().slice(0,10);
-    download(`gelir-gider-${stamp}.csv`, csv);
-  });
-
-  els.seedBtn.addEventListener("click", () => {
-    const base = todayISO().slice(0,7);
-    const samples = [
-      { type:"income", amount: 15000, category:"Harçlık", date:`${base}-01`, note:"Aile" },
-      { type:"expense", amount: 4200, category:"Kira", date:`${base}-03`, note:"Ev" },
-      { type:"expense", amount: 950, category:"Market", date:`${base}-05`, note:"Protein + sebze" },
-      { type:"expense", amount: 380, category:"Ulaşım", date:`${base}-07`, note:"Otobüs" },
-      { type:"income", amount: 750, category:"Yatırım Geliri", date:`${base}-10`, note:"Faiz/PPF" },
-    ];
-    for (const s of samples) addTx(s);
-    renderAll();
-  });
-
-  els.resetBtn.addEventListener("click", () => {
-    const ok = confirm("Tüm gelir-gider kayıtları silinecek. Emin misin?");
-    if (!ok) return;
-    tx = [];
-    saveTx(tx);
-    renderAll();
-  });
-
-  // dashboard
-  els.saveSummary.addEventListener("click", () => {
+  // dashboard save
+  els.saveSummary?.addEventListener("click", () => {
     const cashNow = Number(els.cashInput.value || 0);
     const invNow = Number(els.invInput.value || 0);
     saveSummary({ cashNow, invNow });
+    upsertNetWorthHistory(monthKey(new Date()), cashNow, invNow);
     renderDashboard();
   });
 
   // inventory
-  els.invForm.addEventListener("submit", (e) => {
+  els.invForm?.addEventListener("submit", (e) => {
     e.preventDefault();
-
     const item = {
       id: uid(),
       name: els.invName.value.trim(),
@@ -395,16 +659,11 @@ if (!els.form || !els.tbody) {
       unit: els.invUnit.value,
       low: Number(els.invLow.value),
     };
-
     if (!item.name) return;
-
     inventory.push(item);
     saveInventory(inventory);
-
     els.invName.value = "";
     els.invQty.value = "";
-    els.invName.focus();
-
     renderInventory();
   });
 
