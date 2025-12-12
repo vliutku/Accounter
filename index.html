@@ -9,7 +9,7 @@
 <body>
   <header class="container">
     <h1>Accounter</h1>
-    <p class="muted">Kayıtlar cihazında saklanır (LocalStorage).</p>
+    <p class="muted">Kayıtlar cihazında saklanır (LocalStorage). Export ile dosya indir.</p>
   </header>
 
   <!-- Tabs -->
@@ -18,6 +18,7 @@
     <button class="tab" data-tab="transactions">Gelir-Gider</button>
     <button class="tab" data-tab="investments">Yatırım</button>
     <button class="tab" data-tab="inventory">Envanter</button>
+    <button class="tab" data-tab="notes">Notlar</button>
   </nav>
 
   <main class="container">
@@ -28,16 +29,16 @@
 
       <div class="summary">
         <div class="pill">
-          <div class="muted">Toplam Nakit (manual)</div>
-          <div id="cashNow" class="big">₺0</div>
+          <div class="muted">Toplam Nakit (USD) (manual)</div>
+          <div id="cashNow" class="big">$0</div>
         </div>
         <div class="pill">
-          <div class="muted">Yatırım Değeri (manual)</div>
-          <div id="invNow" class="big">₺0</div>
+          <div class="muted">Yatırım Değeri (USD) (otomatik)</div>
+          <div id="invNow" class="big">$0</div>
         </div>
         <div class="pill">
-          <div class="muted">Toplam Varlık</div>
-          <div id="netWorth" class="big">₺0</div>
+          <div class="muted">Toplam Varlık (USD)</div>
+          <div id="netWorth" class="big">$0</div>
         </div>
       </div>
 
@@ -46,15 +47,15 @@
       <div class="summary">
         <div class="pill">
           <div class="muted">Bu Ay Gelir</div>
-          <div id="mIncome" class="big">₺0</div>
+          <div id="mIncome" class="big">$0</div>
         </div>
         <div class="pill">
           <div class="muted">Bu Ay Gider</div>
-          <div id="mExpense" class="big">₺0</div>
+          <div id="mExpense" class="big">$0</div>
         </div>
         <div class="pill">
           <div class="muted">Bu Ay Net</div>
-          <div id="mNet" class="big">₺0</div>
+          <div id="mNet" class="big">$0</div>
         </div>
       </div>
 
@@ -63,15 +64,14 @@
       <h3>Hızlı Güncelle</h3>
       <div class="form">
         <label>
-          Şu an Nakit (₺)
+          Şu an Nakit (USD)
           <input id="cashInput" type="number" inputmode="decimal" min="0" step="0.01" />
         </label>
-        <label>
-          Şu an Yatırım Toplamı (₺)
-          <input id="invInput" type="number" inputmode="decimal" min="0" step="0.01" />
-        </label>
+
         <button id="saveSummary" type="button">Kaydet</button>
-        <div class="muted small">Not: İlk sürümde yatırım değeri “manual”. Sonra portföy yapacağız.</div>
+        <div class="muted small">
+          Not: Yatırım değeri artık “Yatırım” sekmesindeki manuel fiyatlardan otomatik hesaplanır.
+        </div>
       </div>
 
       <hr />
@@ -107,7 +107,7 @@
             <input id="riName" type="text" placeholder="Harçlık, Burs, Freelance..." required />
           </label>
           <label>
-            Varsayılan miktar (₺)
+            Varsayılan miktar (USD)
             <input id="riAmount" type="number" inputmode="decimal" min="0" step="0.01" required />
           </label>
           <label>
@@ -149,12 +149,12 @@
             <input id="eiDate" type="date" required />
           </label>
           <label>
-            Miktar (₺)
+            Miktar (USD)
             <input id="eiAmount" type="number" inputmode="decimal" min="0" step="0.01" required />
           </label>
           <label>
             Not
-            <input id="eiNote" type="text" maxlength="120" placeholder="örn: freelance, hediye, iade..." />
+            <input id="eiNote" type="text" maxlength="120" placeholder="örn: freelance, hediye..." />
           </label>
           <button type="submit">Ekle</button>
         </form>
@@ -201,7 +201,7 @@
             <input id="bmName" type="text" placeholder="Beslenme, Kira, Fatura..." required />
           </label>
           <label>
-            Aylık bütçe (₺)
+            Aylık bütçe (USD)
             <input id="bmBudget" type="number" inputmode="decimal" min="0" step="0.01" required />
           </label>
           <label class="row">
@@ -243,12 +243,12 @@
             <input id="beDate" type="date" required />
           </label>
           <label>
-            Miktar (₺)
+            Miktar (USD)
             <input id="beAmount" type="number" inputmode="decimal" min="0" step="0.01" required />
           </label>
           <label>
             Not
-            <input id="beNote" type="text" maxlength="120" placeholder="örn: protein, market, kira..." />
+            <input id="beNote" type="text" maxlength="120" placeholder="örn: protein, market..." />
           </label>
           <button type="submit">Ekle</button>
         </form>
@@ -278,12 +278,12 @@
             <input id="ueDate" type="date" required />
           </label>
           <label>
-            Miktar (₺)
+            Miktar (USD)
             <input id="ueAmount" type="number" inputmode="decimal" min="0" step="0.01" required />
           </label>
           <label>
             Not
-            <input id="ueNote" type="text" maxlength="120" placeholder="örn: dişçi, tamir, telefon..." />
+            <input id="ueNote" type="text" maxlength="120" placeholder="örn: tamir, telefon..." />
           </label>
           <button type="submit">Ekle</button>
         </form>
@@ -310,15 +310,15 @@
         <div class="summary">
           <div class="pill">
             <div class="muted">Toplam Gelir</div>
-            <div id="netIncome" class="big">₺0</div>
+            <div id="netIncome" class="big">$0</div>
           </div>
           <div class="pill">
             <div class="muted">Toplam Gider</div>
-            <div id="netExpense" class="big">₺0</div>
+            <div id="netExpense" class="big">$0</div>
           </div>
           <div class="pill">
             <div class="muted">Kalan Para</div>
-            <div id="netLeft" class="big">₺0</div>
+            <div id="netLeft" class="big">$0</div>
           </div>
         </div>
 
@@ -330,10 +330,172 @@
 
     <!-- INVESTMENTS -->
     <section class="card tabPage hidden" id="tab-investments">
-      <h2>Yatırım</h2>
-      <p class="muted">
-        Şimdilik yatırım toplamını Özet ekranından giriyoruz. Sonraki sürüm: BTC/ETH/PAXG/fon portföyü.
-      </p>
+      <div class="row space">
+        <h2>Yatırım (USD)</h2>
+        <label class="muted small">Ay:
+          <input id="invMonth" type="month" />
+        </label>
+      </div>
+
+      <nav class="subtabs">
+        <button type="button" class="subtab active" data-subtab="inv-portfolio">Portföy</button>
+        <button type="button" class="subtab" data-subtab="inv-tx">İşlemler</button>
+        <button type="button" class="subtab" data-subtab="inv-perf">Performans</button>
+      </nav>
+
+      <!-- PORTFOLIO -->
+      <section class="subPage" id="sub-inv-portfolio">
+        <div class="summary">
+          <div class="pill">
+            <div class="muted">Toplam Değer</div>
+            <div id="pfValue" class="big">$0</div>
+          </div>
+          <div class="pill">
+            <div class="muted">Toplam Maliyet</div>
+            <div id="pfCost" class="big">$0</div>
+          </div>
+          <div class="pill">
+            <div class="muted">K/Z</div>
+            <div id="pfPnl" class="big">$0</div>
+          </div>
+        </div>
+
+        <hr />
+
+        <h3>Varlık Ekle</h3>
+        <form id="assetForm" class="form">
+          <label>
+            Sembol (örn: BTC, ETH, QQQ)
+            <input id="assetSymbol" type="text" maxlength="12" required />
+          </label>
+          <label>
+            İsim (opsiyonel)
+            <input id="assetName" type="text" maxlength="40" placeholder="Bitcoin, Nasdaq ETF..." />
+          </label>
+          <label>
+            Kategori
+            <select id="assetCategory">
+              <option value="crypto">Crypto</option>
+              <option value="stock">Stock</option>
+              <option value="fund">Fund</option>
+              <option value="gold">Gold</option>
+            </select>
+          </label>
+          <button type="submit">Ekle</button>
+        </form>
+
+        <hr />
+
+        <h3>Portföy</h3>
+        <div class="tableWrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Sembol</th>
+                <th class="right">Miktar</th>
+                <th class="right">Ort. Maliyet</th>
+                <th class="right">Güncel Fiyat (manual)</th>
+                <th class="right">Değer</th>
+                <th class="right">K/Z</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="pfBody"></tbody>
+          </table>
+        </div>
+
+        <div class="muted small" style="margin-top:10px;">
+          Güncel fiyatı buradan giriyorsun. Tüm hesaplar USD.
+        </div>
+      </section>
+
+      <!-- TX -->
+      <section class="subPage hidden" id="sub-inv-tx">
+        <h3>İşlem Ekle</h3>
+        <form id="invTxForm" class="form">
+          <label>
+            Tarih
+            <input id="invTxDate" type="date" required />
+          </label>
+          <label>
+            Varlık
+            <select id="invTxAsset" required></select>
+          </label>
+          <label>
+            Tür
+            <select id="invTxSide">
+              <option value="buy">Alım</option>
+              <option value="sell">Satım</option>
+            </select>
+          </label>
+          <label>
+            Miktar
+            <input id="invTxQty" type="number" inputmode="decimal" min="0" step="0.00000001" required />
+          </label>
+          <label>
+            Fiyat (USD)
+            <input id="invTxPrice" type="number" inputmode="decimal" min="0" step="0.01" required />
+          </label>
+          <label>
+            Komisyon (USD) (opsiyonel)
+            <input id="invTxFee" type="number" inputmode="decimal" min="0" step="0.01" />
+          </label>
+          <label>
+            Not
+            <input id="invTxNote" type="text" maxlength="120" placeholder="opsiyonel" />
+          </label>
+          <button type="submit">Ekle</button>
+        </form>
+
+        <hr />
+
+        <div class="row space">
+          <h3>İşlemler (Bu Ay)</h3>
+          <div class="muted small" id="invTxInfo">—</div>
+        </div>
+
+        <div class="tableWrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Tarih</th>
+                <th>Varlık</th>
+                <th>Tür</th>
+                <th class="right">Miktar</th>
+                <th class="right">Fiyat</th>
+                <th class="right">Komisyon</th>
+                <th>Not</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="invTxBody"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- PERF -->
+      <section class="subPage hidden" id="sub-inv-perf">
+        <div class="summary">
+          <div class="pill">
+            <div class="muted">Bu Ay Alım (USD)</div>
+            <div id="invBuySum" class="big">$0</div>
+          </div>
+          <div class="pill">
+            <div class="muted">Bu Ay Satım (USD)</div>
+            <div id="invSellSum" class="big">$0</div>
+          </div>
+          <div class="pill">
+            <div class="muted">Net Akış</div>
+            <div id="invNetFlow" class="big">$0</div>
+          </div>
+        </div>
+
+        <hr />
+
+        <h3>Portföy Değeri (Ay Ay)</h3>
+        <p class="muted small">Her ay “Özet → Kaydet” yaparsan grafik daha anlamlı olur.</p>
+        <canvas id="invValueChart" style="width:100%; height:220px;"></canvas>
+      </section>
     </section>
 
     <!-- INVENTORY -->
@@ -343,7 +505,6 @@
         <div class="muted small">Sporcu stok + aylık beslenme maliyeti tahmini</div>
       </div>
 
-      <!-- FOOD FORECAST PANEL -->
       <div class="card miniCard">
         <div class="row space">
           <h3 style="margin:0;">Beslenme Öngörüsü</h3>
@@ -353,11 +514,11 @@
         <div class="summary" style="margin-top:12px;">
           <div class="pill">
             <div class="muted">Bu Ay Tahmini Toplam</div>
-            <div id="foodForecastTotal" class="big">₺0</div>
+            <div id="foodForecastTotal" class="big">$0</div>
           </div>
           <div class="pill">
             <div class="muted">Günlük Ortalama</div>
-            <div id="foodForecastDaily" class="big">₺0</div>
+            <div id="foodForecastDaily" class="big">$0</div>
           </div>
           <div class="pill">
             <div class="muted">Beslenme Bütçesi</div>
@@ -380,10 +541,9 @@
 
       <h3>Ürün Ekle</h3>
       <form id="invForm" class="form">
-
         <label>
           Ürün
-          <input id="invName" type="text" placeholder="pirinç, yulaf, tavuk, yumurta..." required />
+          <input id="invName" type="text" placeholder="pirinç, yulaf, tavuk..." required />
         </label>
 
         <div class="row">
@@ -420,30 +580,25 @@
 
         <div class="row">
           <label style="flex:1;">
-            Birim fiyat (₺)
-            <input id="invPrice" type="number" inputmode="decimal" min="0" step="0.01" placeholder="örn: 180" />
+            Birim fiyat (USD)
+            <input id="invPrice" type="number" inputmode="decimal" min="0" step="0.01" placeholder="örn: 6.50" />
           </label>
 
           <label style="flex:1;">
             Fiyat birimi
             <select id="invPriceUnit">
-              <option value="kg">₺ / kg</option>
-              <option value="g">₺ / g</option>
-              <option value="l">₺ / litre</option>
-              <option value="ml">₺ / ml</option>
-              <option value="adet">₺ / adet</option>
-              <option value="paket">₺ / paket</option>
-              <option value="porsiyon">₺ / porsiyon</option>
+              <option value="kg">$ / kg</option>
+              <option value="g">$ / g</option>
+              <option value="l">$ / litre</option>
+              <option value="ml">$ / ml</option>
+              <option value="adet">$ / adet</option>
+              <option value="paket">$ / paket</option>
+              <option value="porsiyon">$ / porsiyon</option>
             </select>
           </label>
         </div>
 
         <button type="submit">Ekle</button>
-
-        <div class="muted small" style="margin-top:8px;">
-          İpucu: Tavuk için stok=kg, fiyat birimi=kg; yumurta için stok=adet, fiyat birimi=adet.
-          Günlük tüketim yazarsan “kaç gün yeter” ve “aylık maliyet” hesaplanır.
-        </div>
       </form>
 
       <hr />
@@ -466,10 +621,54 @@
       </div>
     </section>
 
+    <!-- NOTES -->
+    <section class="card tabPage hidden" id="tab-notes">
+      <div class="row space">
+        <h2>Aylık Notlar</h2>
+        <label class="muted small">Ay:
+          <input id="notesMonth" type="month" />
+        </label>
+      </div>
+
+      <div class="muted small">
+        Bu notlar “aylık durum raporu” gibi: hedefler, ders/fitness, para, plan vs.
+      </div>
+
+      <hr />
+
+      <form id="notesForm" class="form">
+        <label>
+          Not
+          <textarea id="notesText" rows="8" placeholder="Bu ay neler oldu? Ne iyi gitti? Ne kötü gitti? Plan?"></textarea>
+        </label>
+        <div class="row">
+          <button type="button" id="saveNotes" class="secondary">Kaydet</button>
+          <button type="button" id="clearNotes" class="danger">Sil</button>
+        </div>
+      </form>
+
+      <hr />
+
+      <h3>Ay Sonu Export</h3>
+      <div class="form">
+        <div class="muted small">
+          Seçili ay için <strong>tüm verileri</strong> JSON dosyası olarak indirir (gelir-gider, yatırım, envanter, notlar, özet).
+        </div>
+        <div class="row">
+          <button type="button" id="exportMonthBtn">Seçili Ayı Dışa Aktar (JSON)</button>
+          <button type="button" id="exportAllBtn" class="secondary">Tüm Veriyi Dışa Aktar (JSON)</button>
+        </div>
+
+        <div class="muted small" style="margin-top:10px;">
+          iPad’de indirme dosyaları “Dosyalar” uygulamasına gider.
+        </div>
+      </div>
+    </section>
+
   </main>
 
   <footer class="container muted small">
-    v0.6 — Özet + Gelir/Gider/Net + Envanter (Beslenme Öngörüsü)
+    v1.0 — USD + Gelir/Gider/Net + Yatırım + Envanter + Notlar + Export
   </footer>
 
   <script src="app.js"></script>
