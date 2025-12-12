@@ -17,7 +17,7 @@ body {
 }
 
 .container { max-width: 1100px; margin: 0 auto; padding: 16px; }
-.grid { display: grid; gap: 16px; grid-template-columns: 1fr 1fr; }
+
 .card {
   background: rgba(18,26,51,.85);
   border: 1px solid var(--border);
@@ -25,7 +25,6 @@ body {
   padding: 16px;
   backdrop-filter: blur(8px);
 }
-.full { grid-column: 1 / -1; }
 
 h1 { margin: 0 0 4px; font-size: 26px; }
 h2 { margin: 0 0 12px; font-size: 18px; }
@@ -36,6 +35,7 @@ h3 { margin: 10px 0 8px; font-size: 15px; }
 
 .form { display: grid; gap: 10px; }
 label { display: grid; gap: 6px; font-size: 13px; }
+
 input, select, button {
   border-radius: 12px;
   border: 1px solid var(--border);
@@ -44,12 +44,15 @@ input, select, button {
   padding: 10px 12px;
   outline: none;
 }
+
 input:focus, select:focus { border-color: rgba(110,168,254,.7); }
+
 button {
   cursor: pointer;
   background: rgba(110,168,254,.18);
   border-color: rgba(110,168,254,.35);
 }
+
 button.secondary { background: rgba(255,255,255,.06); }
 button.danger { background: rgba(255,92,115,.18); border-color: rgba(255,92,115,.35); }
 
@@ -71,7 +74,29 @@ th, td { padding: 10px 12px; border-bottom: 1px solid var(--border); font-size: 
 th { text-align: left; color: var(--muted); font-weight: 600; background: rgba(0,0,0,.18); }
 td.right, th.right { text-align: right; }
 
+hr {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 14px 0;
+}
+
+/* Tabs */
+.tabs{
+  display:flex; gap:10px; flex-wrap:wrap;
+  max-width:1100px; margin:0 auto; padding: 0 16px 12px;
+}
+.tab{
+  padding:10px 12px; border-radius:12px;
+  border:1px solid var(--border);
+  background: rgba(255,255,255,.06);
+}
+.tab.active{
+  background: rgba(110,168,254,.22);
+  border-color: rgba(110,168,254,.45);
+}
+.hidden{ display:none; }
+
 @media (max-width: 900px) {
-  .grid { grid-template-columns: 1fr; }
   .summary { grid-template-columns: 1fr; }
+  table { min-width: 680px; }
 }
