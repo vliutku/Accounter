@@ -298,6 +298,10 @@ function renderAll() {
 
 // ====== Wire events ======
 function init() {
+  // Güvenlik: eksik element varsa çökme
+if (!els.form || !els.tbody) {
+  console.warn("Gelir-Gider bölümü henüz tam değil");
+}
   // defaults
   if (els.date) els.date.value = todayISO();
   setCategoryOptions();
