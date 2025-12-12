@@ -413,11 +413,99 @@
       <div class="muted small" id="instLegend" style="margin-top:10px;">—</div>
     </section>
 
-    <!-- INVENTORY (kept; you can TL-ize later if you want) -->
+    <!-- INVENTORY (ENABLED) -->
     <section class="card tabPage hidden" id="tab-inventory">
-      <h2>Envanter</h2>
-      <p class="muted">Bu sürümde envanter bölümü değişmedi.</p>
-      <p class="muted small">İstersen bir sonraki adımda envanteri de TL’ye çevirip beslenme bütçesiyle bağlarız.</p>
+      <div class="row space">
+        <h2>Envanter (₺)</h2>
+        <label class="muted small">Ay:
+          <input id="invMonth" type="month" />
+        </label>
+      </div>
+
+      <div class="summary">
+        <div class="pill">
+          <div class="muted">Önerilen bu ay harcama</div>
+          <div id="invRecommendedTry" class="big">₺0</div>
+        </div>
+        <div class="pill">
+          <div class="muted">Ay sonuna kadar riskli ürün</div>
+          <div id="invRiskCount" class="big">0</div>
+        </div>
+        <div class="pill">
+          <div class="muted">Toplam ürün</div>
+          <div id="invItemCount" class="big">0</div>
+        </div>
+      </div>
+
+      <hr />
+
+      <h3>Ürün Ekle</h3>
+      <form id="invForm" class="form">
+        <label>
+          Ürün
+          <input id="invName" type="text" placeholder="pirinç, yulaf, tavuk..." required />
+        </label>
+
+        <label>
+          Birim
+          <select id="invUnit">
+            <option value="g">g</option>
+            <option value="kg">kg</option>
+            <option value="adet">adet</option>
+            <option value="paket">paket</option>
+          </select>
+        </label>
+
+        <label>
+          Stok (birim)
+          <input id="invQty" type="number" inputmode="decimal" min="0" step="0.01" required />
+        </label>
+
+        <label>
+          Birim fiyat (₺ / birim)
+          <input id="invPrice" type="number" inputmode="decimal" min="0" step="0.01" required />
+        </label>
+
+        <label>
+          Aylık plan (birim / ay)
+          <input id="invMonthly" type="number" inputmode="decimal" min="0" step="0.01" placeholder="örn: 3000 g, 2 paket..." />
+        </label>
+
+        <label>
+          Az kaldı eşiği (birim)
+          <input id="invLow" type="number" inputmode="decimal" min="0" step="0.01" value="1" required />
+        </label>
+
+        <button type="submit">Ekle</button>
+      </form>
+
+      <hr />
+
+      <div class="row space">
+        <h3>Ürünler</h3>
+        <div class="muted small">“Aylık plan” seçili aya göre düzenlenir.</div>
+      </div>
+
+      <div class="tableWrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Ürün</th>
+              <th>Birim</th>
+              <th class="right">Stok</th>
+              <th class="right">Birim ₺</th>
+              <th class="right">Aylık plan</th>
+              <th class="right">Bu ay ₺</th>
+              <th>Durum</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="invBody"></tbody>
+        </table>
+      </div>
+
+      <hr />
+      <div class="muted" id="invInsight">—</div>
     </section>
 
     <!-- NOTES -->
@@ -454,7 +542,7 @@
   </main>
 
   <footer class="container muted small">
-    v1.0 — Gelir/Gider ₺ + Net Worth $ (manuel parite) + Basit Yatırım
+    v1.1 — Envanter aktif (₺) + Aylık plan + Önerilen harcama
   </footer>
 
   <script src="app.js"></script>
